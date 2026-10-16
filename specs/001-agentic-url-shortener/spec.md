@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Approved v1.6 (approved by the human candidate 2026-10-16, DEC-015, DEC-020 to DEC-036). Contents: 55 functional requirements (FR-001 to FR-022, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-013 are all resolved; no ambiguity is open. Two known limitations are recorded and accepted (LIM-001; LIM-002, which requires a plan mitigation). CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
+**Status**: Approved v1.9 (approved by the human candidate 2026-10-16, DEC-015, DEC-020 to DEC-056). Contents: 56 functional requirements (FR-001 to FR-023, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-013 are all resolved; no ambiguity is open. Two known limitations are recorded and accepted (LIM-001; LIM-002, which requires a plan mitigation). CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
 
 **Input**: User description: "Build a production-grade prototype titled 'Agentic Software Engineering System: URL Shortener' that demonstrates a governed agentic execution system transforming software requirements into reviewable engineering outcomes across the complete SDLC, using a URL shortener as the demonstration domain."
 
@@ -27,7 +27,7 @@ This specification is implementation-independent. It deliberately chooses no fra
 | `US-n` | User journey | `NFR-nnn` | Non-functional requirement |
 | `SCN-X` | Required scenario (A, B, C) | `ASM-nnn` | Assumption |
 | `FR-0nn` | Functional requirement, URL shortener domain | `CON-nnn` | Constraint |
-| `FR-1nn` | Functional requirement, orchestration | `AMB-nnn` | Ambiguity (open) |
+| `FR-1nn` | Functional requirement, orchestration | `AMB-nnn` | Ambiguity |
 | `PVT-nnn` | Validation target | `EXC-nnn` | Exclusion |
 | `DEC-nnn` | Recorded human decision | `FR-133` onward | Added by a recorded decision |
 | `LIM-nnn` | Known limitation | | |
@@ -35,6 +35,22 @@ This specification is implementation-independent. It deliberately chooses no fra
 
 Each requirement lists `AC` (observable acceptance criteria), `NAC` (negative acceptance criteria: what MUST NOT happen), and `Evidence` (evidence types from the Evidence Catalogue). Tests, designs, tasks, and implementation will cite these IDs for bidirectional traceability.
 
+## Clarifications
+
+### Session 2026-10-16
+
+- Q: How must the system prove that an approval, rejection, or policy exception came from the human approver and not from an AI agent or script? → A: Option A: a separate approver credential that agents never hold; the audit record stores the authenticated approver identity (DEC-037).
+
+Review findings (contradictions, undefined terms, missing requirements) resolved by the human candidate are recorded as DEC-038 to DEC-044 in the Decision Record.
+
+- Q: Resolve the deferred questions DQ-001 to DQ-006 and the pending topics (client identification, release gates, rollback versus compensation, short codes, retention). → A: Approved as recorded in DEC-045 to DEC-051 and ASM-012 to ASM-016.
+- Q: Approve the DEC-048 reading and the proposed assumptions DQ-007 to DQ-010. → A: Approved as recorded in DEC-052 to DEC-056.
+
+**Deferred questions and residual assumptions.** DQ-001 to DQ-010 are resolved (DEC-045 to DEC-050, DEC-053 to DEC-056). One item remains, found while applying DQ-007; its proposed assumption is unapproved until the human candidate approves it, and implementation may not assume it before then.
+
+| ID | Question | Impact | Current (proposed) assumption | Owner | Required decision point |
+|----|----------|--------|-------------------------------|-------|-------------------------|
+| DQ-011 | How does the client identifier stay the same across a client's first contact, when a tokenless first request is identified by IP hash (DEC-053) and the session token is issued only in the response? | A client's first link would be owned by its IP-hash identifier, but its later token-bearing requests would carry a different identifier, so the same client could lose count access and idempotency scope. Also, if clients can mint new tokens freely, discarding tokens could reset rate limits | The token issued in the first response is bound to the identifier used at first contact, so ownership and idempotency scope continue unchanged; rate limiting also applies per IP-address hash so that discarding or re-minting tokens does not reset limits | Human candidate | Before `/speckit-plan` |
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - API Consumer Creates and Uses Short Links (Priority: P1)
@@ -129,7 +145,7 @@ An assessment reviewer reconstructs a complete execution from recorded evidence 
 
 #### SCN-B - Brownfield
 
-An enhancement, refactor, or defect correction against the existing URL shortener. Per DEC-002, the existing URL shortener is the baseline established by SCN-A, so SCN-B is demonstrated after SCN-A. The change request is **CR-001** (DEC-014): add an optional `metadata` field (string key-value pairs) to the short-link creation request. It is chosen to demonstrate API schema evolution, persistence migration, impact analysis, and regression testing. Requirements for CR-001 are produced by the SCN-B change workflow under formal impact analysis and change approval (FR-126), not pre-specified here; open details are in AMB-011. Earlier example change requests (IP-based rate limiting, short-code length) are not selected.
+An enhancement, refactor, or defect correction against the existing URL shortener. Per DEC-002, the existing URL shortener is the baseline established by SCN-A, so SCN-B is demonstrated after SCN-A. The change request is **CR-001** (DEC-014): add an optional `metadata` field (string key-value pairs) to the short-link creation request. It is chosen to demonstrate API schema evolution, persistence migration, impact analysis, and regression testing. Requirements for CR-001 are produced by the SCN-B change workflow under formal impact analysis and change approval (FR-126), not pre-specified here; the `metadata` bounds and logging treatment are deferred to that workflow (ASM-008). Earlier example change requests (IP-based rate limiting, short-code length) are not selected.
 
 1. **Given** a change request against the existing system, **When** the workflow starts, **Then** before any code change it identifies impacted components, interfaces, data flows, tests, documentation, regression risks, and rollout/rollback considerations.
 2. **Given** that impact analysis is incomplete, **When** implementation is attempted, **Then** implementation does not start.
@@ -151,7 +167,7 @@ Incomplete, unclear, or conflicting input.
 - The persistence layer is unavailable or slow during creation, resolution, analytics capture, or workflow-state save.
 - Analytics capture fails while the redirect itself could succeed.
 - A destination URL is syntactically valid but unsafe (disallowed scheme, internal/loopback target, redirect loop onto the service itself).
-- An approver responds after a timeout has already triggered safe-stop.
+- An approver responds after a timeout has already triggered safe-stop (outcome defined in FR-115, DEC-041).
 - Upstream output changes while parallel downstream paths are mid-execution.
 - Execution is interrupted between a side effect and its state record.
 - A compensation action itself fails.
@@ -194,16 +210,16 @@ Incomplete, unclear, or conflicting input.
   - AC: No two distinct mappings share a code, including under concurrent creation.
   - NAC: A collision MUST NOT overwrite an existing mapping or redirect to the wrong destination.
   - Evidence: EV-TEST
-- **FR-007** [Confirmed] The service MUST generate short codes and MUST handle a generation collision by a bounded, documented recovery (retry with a new code, then fail safely).
+- **FR-007** [Confirmed] The service MUST generate short codes using a cryptographically secure random source (at least 7 characters, base62 alphabet, case-sensitive; ASM-015, DEC-051) and MUST handle a generation collision by a bounded, documented recovery (retry with a new code, then fail safely).
   - AC: A forced collision results in a new unique code or a defined failure.
-  - NAC: Collision handling MUST NOT loop unbounded or leak internal state.
+  - NAC: Collision handling MUST NOT loop unbounded or leak internal state. A generated code MUST NOT be sequential, derivable from earlier codes, or derived from the destination URL.
   - Evidence: EV-TEST, EV-LOG
 
 **Redirect resolution**
 
 - **FR-008** [Confirmed] Resolving a valid, unexpired short code MUST redirect to its original destination using a temporary redirect (HTTP 302), so that every visit reaches the service and aggressive client caching is avoided (DEC-011, resolves AMB-006).
   - AC: The redirect target equals the normalized stored destination and the redirect is temporary (302).
-  - NAC: Resolution MUST NOT redirect for unknown, expired, or disabled codes, and MUST NOT use a permanent redirect.
+  - NAC: Resolution MUST NOT redirect for unknown or expired codes (the only link statuses are active and expired), and MUST NOT use a permanent redirect (DEC-011, DEC-039).
   - Evidence: EV-TEST
 - **FR-009** [Confirmed] Resolving an unknown or malformed short code MUST return a not-found outcome that does not disclose whether such a code ever existed.
   - AC: Unknown and malformed codes yield the same not-found outcome.
@@ -224,7 +240,7 @@ Incomplete, unclear, or conflicting input.
 **Analytics**
 
 - **FR-012** [Confirmed] The service MUST capture basic redirect analytics for each successful redirect, limited to redirect count and timestamp only (DEC-007, resolves AMB-002).
-  - AC: N successful redirects result in a visit count of N, each with a timestamp.
+  - AC: N successful redirects result in a visit count of N, each with a timestamp. Analytics data is retained for 30 days (ASM-016); per-event timestamps are purged after 30 days while the aggregate redirect count is kept for the life of the link, so N redirects still give a count of N (DEC-055).
   - NAC: Failed, expired, or unknown resolutions MUST NOT increment the successful-redirect count, and no analytics field beyond count and timestamp MUST be captured.
   - Evidence: EV-TEST, EV-METRIC
 - **FR-013** [Derived: constitution V] Analytics MUST NOT store or log sensitive data beyond the approved fields.
@@ -245,7 +261,7 @@ Incomplete, unclear, or conflicting input.
     - Metadata component (applies once CR-001 exists; before then every request carries the empty map): canonically encoded before hashing with keys sorted lexicographically, UTF-8, and no insignificant whitespace. Absent metadata and an empty metadata map both canonicalize to `{}` and yield the same signature. Keys are case-sensitive. Reordered pairs yield the same signature (DEC-025). Bounds are deferred to ASM-008.
     - URL component: the FR-002 normalized URL, never the raw client input (DEC-025).
     - An idempotency record has states IN_PROGRESS, COMPLETED, and FAILED (DEC-026). Same key and same signature while IN_PROGRESS returns 409 with reason `idempotency_request_in_progress` and creates no second mapping. Same key and same signature when COMPLETED replays the stored response, marked as a replay (FR-016). Same key and same signature when FAILED replays the stored failure response, marked as a replay, for the full retention window; a key is consumed by its outcome, including failure, and a client that wants to retry after a failure MUST use a new key (DEC-029). A FAILED idempotency record is created only for definitive failures (permanent errors). Validation rejections and transient failures do not create a record and do not consume the key, so the client can correct or retry the request with the same key (DEC-033). For this rule, content rejections under FR-003 to FR-005, the expiry errors of FR-010 (`expiry_out_of_range`, `unsupported_expiry_representation`), and rate-limited outcomes (FR-022) are validation-class rejections that occur before any idempotency record exists; a transient failure is a persistence timeout or similar failure that exhausts bounded retries (FR-019, FR-020), and its in-flight record is released rather than marked FAILED. An IN_PROGRESS record has a 60-second lease (FR-017, DEC-030). Same key and different signature returns 409 Conflict (idempotency key reused with different request signature).
-    - A key is scoped per client (client identifier or anonymous session token), so the same key value used by two clients is two independent keys. The 24-hour idempotency retention window starts when the record transitions to COMPLETED or FAILED, not when the record is created (DEC-016, DEC-031). Behavior after the retention window is documented in LIM-001.
+    - A key is scoped per client (the client identifier of ASM-012), so the same key value used by two clients is two independent keys. The 24-hour idempotency retention window starts when the record transitions to COMPLETED or FAILED, not when the record is created (DEC-016, DEC-031). Behavior after the retention window is documented in LIM-001.
   - NAC:
     - A retry after a timeout carrying the same key and signature MUST NOT create a second mapping. A request without the header MUST NOT be deduplicated against earlier requests.
     - Reusing a key with any difference in URL, metadata, or expiry MUST be rejected with 409 Conflict and MUST NOT create or modify a mapping; a differing expiry alone MUST NOT be treated as a replay.
@@ -292,16 +308,23 @@ Incomplete, unclear, or conflicting input.
   - AC: Healthy state reports ready; a failed dependency reports not-ready while liveness remains accurate.
   - NAC: Health output MUST NOT expose secrets, credentials, or internal topology.
   - Evidence: EV-TEST
-- **FR-022** [Derived: constitution V] The service MUST apply rate limiting to creation and resolution by a documented policy (thresholds proposed in PVT-006).
+- **FR-022** [Derived: constitution V] The service MUST apply rate limiting to creation and resolution by a documented policy per client identifier (ASM-012; thresholds proposed in PVT-006).
   - AC: Requests above the limit receive a defined rate-limited outcome.
   - NAC: Rate limiting MUST NOT block unrelated clients or leak other clients' usage.
+  - Evidence: EV-TEST
+
+**Analytics inspection**
+
+- **FR-023** [Derived: US-1] The service MUST provide the current redirect count for a short link upon creation or via a dedicated inspection endpoint (DEC-040).
+  - AC: The count returned for a link equals the number of successful redirects recorded for it (FR-012); a newly created link reports a count of 0; a link whose analytics capture failed (FR-014) reports a count that excludes the failed captures, and each failure remains visible in the log and audit record.
+  - NAC: The count MUST NOT include failed, expired, or unknown resolutions, and the inspection MUST NOT expose fields beyond the approved analytics fields (FR-013) or reveal the existence of unknown codes (FR-009). Only the creating client, identified by the same client identifier used for idempotency and rate limiting (ASM-012), may read the count; any other caller MUST be denied, and the denial MUST NOT reveal whether the code exists (DEC-049).
   - Evidence: EV-TEST
 
 ### Functional Requirements: Agentic SDLC Orchestration
 
 **Workflow lifecycle**
 
-- **FR-101** [Confirmed] The system MUST create a workflow from a submitted requirement, assigning a unique run identifier and recording the policy version evaluated.
+- **FR-101** [Confirmed] The system MUST create a workflow from a submitted requirement, assigning a unique run identifier and recording the policy version evaluated. The policy version identifies a simple versioned JSON policy catalogue (for example v1.0) defined in the plan, in which every MUST in the constitution is a mandatory policy (DEC-048).
   - AC: Each workflow has a unique run ID and a recorded policy version.
   - NAC: A workflow MUST NOT start without a run ID or a policy version.
   - Evidence: EV-AUDIT, EV-TEST
@@ -338,7 +361,7 @@ Incomplete, unclear, or conflicting input.
   - Evidence: EV-AUDIT, EV-ART
 - **FR-109** [Derived: constitution II] Agent autonomy MUST be bounded: each agent role MUST have a defined permitted-action scope, and out-of-scope actions MUST be blocked and recorded.
   - AC: An out-of-scope action attempt is denied and audited.
-  - NAC: An agent MUST NOT grant itself approval or widen its own scope.
+  - NAC: An agent MUST NOT grant itself approval or widen its own scope, and MUST NOT hold or obtain the approver credential (DEC-037).
   - Evidence: EV-TEST, EV-AUDIT
 
 **Requirement understanding and ambiguity**
@@ -347,7 +370,7 @@ Incomplete, unclear, or conflicting input.
   - AC: A normalized requirement lists check results (complete, consistent, testable, in policy and architecture boundaries).
   - NAC: Normalization MUST NOT invent requirements absent from the input.
   - Evidence: EV-ART, EV-AUDIT
-- **FR-111** [Confirmed] The system MUST detect incomplete, unclear, or conflicting requirement content and classify it (material vs non-material).
+- **FR-111** [Confirmed] The system MUST detect incomplete, unclear, or conflicting requirement content and classify it (material vs non-material). An ambiguity is material if resolving it would change the API contract, persistence schema, security boundary, or orchestration flow; non-material ambiguities are cosmetic or have safe, documented defaults (DEC-047).
   - AC: Seeded ambiguous input is flagged with a classification and reason.
   - NAC: A material ambiguity MUST NOT be resolved silently by the system.
   - Evidence: EV-TEST, EV-AUDIT
@@ -363,12 +386,12 @@ Incomplete, unclear, or conflicting input.
 **Human approval**
 
 - **FR-114** [Confirmed] The system MUST enforce human approval checkpoints at mandatory gates and support approve, reject, and escalate outcomes, each with a recorded reason and actor.
-  - AC: A gated path advances only on explicit approval.
-  - NAC: A gate MUST NOT be skipped, and approval MUST NOT be inferred from silence or timeout.
+  - AC: A gated path advances only on explicit approval. Approvals, rejections, escalations, policy exceptions (FR-125), and human review decisions (FR-133) are accepted only when presented with an approver credential that agents never hold, and the audit record stores the authenticated approver identity together with the role string (DEC-037).
+  - NAC: A gate MUST NOT be skipped, and approval MUST NOT be inferred from silence or timeout. An approval, rejection, or exception attempted without the approver credential (including by an agent) MUST be denied and audited and MUST NOT change workflow state. The approver credential MUST NOT appear in logs, artifacts, or audit records. The credential mechanism is an implementation decision for the plan.
   - Evidence: EV-AUDIT, EV-TEST
 - **FR-115** [Derived: constitution III] Each gate MUST define timeout, escalation, and safe-stop behavior.
-  - AC: Timeout behavior follows the gate definition (PVT-008).
-  - NAC: A timeout MUST NOT be treated as approval.
+  - AC: Timeout behavior follows the gate definition (PVT-008). Tests MAY exercise the timeout with a shortened test configuration (for example 5 seconds); every such event MUST be logged and audited as a "simulated 24-hour timeout" (DEC-044).
+  - NAC: A timeout MUST NOT be treated as approval. If an approver responds after a timeout has already triggered safe-stop, the response MUST be rejected, logged as `late_response_after_safe_stop`, and the workflow MUST remain in the safe-stop state (DEC-041). A simulated timeout MUST NOT be recorded or reported as an actual 24-hour wait (DEC-044).
   - Evidence: EV-TEST, EV-AUDIT
 - **FR-116** [Derived: constitution III] A rejection MUST propagate: the gated path stops, downstream impact is identified, and the system proposes a re-plan, awaiting human decision.
   - AC: A rejection yields an impact record and a pending replan proposal.
@@ -386,14 +409,14 @@ Incomplete, unclear, or conflicting input.
   - NAC: A fallback MUST NOT lower a mandatory policy, security, or approval requirement.
   - Evidence: EV-TEST, EV-AUDIT
 - **FR-119** [Confirmed] The system MUST support rollback or compensation of completed effects, distinguishing the two, and MUST record each action and its result.
-  - AC: A failure after partial effects triggers the defined rollback or compensation to a consistent state.
+  - AC: A failure after partial effects triggers the defined rollback or compensation to a consistent state. Persistence writes within a unit of work are rolled back by aborting it; effects that cannot be aborted (external side effects, if any) require compensation, and for this prototype transaction rollback is primary (ASM-014). Effects already committed or irreversible are compensated by a new compensating record or action and are never deleted. The effects that can only be compensated, never rolled back, are audit records, recorded approvals, committed code, and anything sent externally (DEC-056).
   - NAC: A failed compensation MUST NOT be silently ignored; it MUST escalate.
   - Evidence: EV-TEST, EV-AUDIT
-- **FR-120** [Confirmed] The system MUST enter safe-stop when continuation is unsafe (for example policy FAIL, exhausted retries, failed compensation, approval timeout) and preserve a deterministic terminal state with the reason.
-  - AC: Each defined unsafe condition leads to safe-stop with a recorded reason.
-  - NAC: Safe-stop MUST NOT discard state or evidence.
+- **FR-120** [Confirmed] The system MUST enter safe-stop when continuation is unsafe (for example an unresolved mandatory policy FAIL after the policy-block resolution window (FR-125), exhausted retries, failed compensation, approval timeout) and preserve a deterministic terminal state with the reason.
+  - AC: Each defined unsafe condition leads to safe-stop with a recorded reason. Safe-stop is terminal for that run: its status is SAFE_STOPPED and it remains permanently in the audit log; recovery requires the human to explicitly start a new workflow run (DEC-050).
+  - NAC: Safe-stop MUST NOT discard state or evidence, and a SAFE_STOPPED run MUST NOT be resumed, continued, or have its status changed (DEC-050).
   - Evidence: EV-TEST, EV-AUDIT
-- **FR-121** [Confirmed] The system MUST resume safely after a recoverable interruption, continuing from persisted state without duplicating completed side effects.
+- **FR-121** [Confirmed] The system MUST resume safely after a recoverable interruption, continuing from persisted state without duplicating completed side effects. Resumption applies to recoverable interruptions only and does not apply to a SAFE_STOPPED run (DEC-050).
   - AC: A run interrupted at any point resumes and reaches the same outcome as an uninterrupted run.
   - NAC: Resumption MUST NOT re-execute completed non-idempotent effects or skip unfinished work.
   - Evidence: EV-TEST, EV-AUDIT
@@ -401,7 +424,7 @@ Incomplete, unclear, or conflicting input.
   - AC: A changed upstream artifact marks dependent artifacts stale and re-plans them.
   - NAC: Re-planning MUST NOT re-run unaffected completed stages without cause.
   - Evidence: EV-TEST, EV-AUDIT
-- **FR-123** [Confirmed] Governance MUST be preserved during re-planning: approvals, policy checks, and gates apply to the new plan, and previously granted approvals are not carried over where the approved content has changed.
+- **FR-123** [Confirmed] Governance MUST be preserved during re-planning: approvals, policy checks, and gates apply to the new plan, and previously granted approvals are not carried over where the approved content has materially changed. A change is material if it alters an approved requirement, architecture, schema, workflow state, security control, or release criterion (DEC-046).
   - AC: Changed approved content requires re-approval.
   - NAC: Re-planning MUST NOT bypass a gate or reuse an approval for materially changed content.
   - Evidence: EV-AUDIT, EV-TEST
@@ -409,26 +432,26 @@ Incomplete, unclear, or conflicting input.
 **Policy, change control, and security**
 
 - **FR-124** [Derived: constitution VI] The system MUST evaluate versioned policy guardrails (security, compliance, privacy, audit retention, approved dependencies, licensing, change control) and record each check as PASS, FAIL, EXCEPTION-REQUESTED, or NOT-APPLICABLE.
-  - AC: Every applicable check has exactly one recorded outcome and policy version.
+  - AC: Every applicable check has exactly one recorded outcome and policy version, and each mandatory policy is cited from the catalogue with its constitution MUST source (DEC-048).
   - NAC: A check MUST NOT end without an outcome.
   - Evidence: EV-AUDIT, EV-TEST
-- **FR-125** [Derived: constitution VI] A FAIL on a mandatory policy MUST block downstream progression until resolved or a human-approved exception exists.
+- **FR-125** [Derived: constitution VI] A FAIL on a mandatory policy MUST block downstream progression until resolved or a human-approved exception exists. The block is the immediate, ongoing action while the FAIL is unresolved; safe-stop (FR-120) is the terminal state entered only if the block cannot be resolved within the policy-block resolution window (DEC-042). The policy-block resolution window is 24 hours (logical); tests simulate it with a shortened configuration (for example 5 seconds) explicitly logged as a simulated timeout, and safe-stop triggers if the FAIL is unresolved at the end of the window (DEC-045, DEC-044).
   - AC: Downstream stages do not start while a mandatory FAIL is unresolved.
-  - NAC: An exception MUST NOT be approved by an agent, and MUST NOT lack any required field (policy, reason, scope, approver, compensating control, timestamp, expiry or review condition).
+  - NAC: An exception MUST NOT be approved by an agent or without the approver credential (DEC-037), and MUST NOT lack any required field (policy, reason, scope, approver, compensating control, timestamp, expiry or review condition).
   - Evidence: EV-AUDIT, EV-TEST
-- **FR-126** [Derived: constitution VI] Changes to approved requirements, architecture, schemas, workflow states, security controls, or release criteria MUST pass formal impact analysis and change approval.
+- **FR-126** [Derived: constitution VI] Changes to approved requirements, architecture, schemas, workflow states, security controls, or release criteria MUST pass formal impact analysis and change approval. A "mandatory policy" is every MUST in the constitution, cited from the versioned policy catalogue (DEC-048). The FR-126 list and the material-change definition in FR-123 coincide (DEC-046).
   - AC: Such a change has an impact record and an approval before taking effect.
   - NAC: These changes MUST NOT take effect on agent authority alone.
   - Evidence: EV-ART, EV-AUDIT
 - **FR-127** [Confirmed] The system MUST perform a security and risk validation stage including dependency scanning, secret scanning, and threat-scenario review, with findings recorded.
-  - AC: The stage produces findings or an explicit clean result with the scan evidence.
+  - AC: The stage produces findings or an explicit clean result with the scan evidence. A mandatory security policy blocks release readiness on any unresolved high or critical dependency or secret-scan finding, where unresolved means neither remediated nor covered by a human-approved exception (DEC-054).
   - NAC: The stage MUST NOT be marked complete without running the scans.
   - Evidence: EV-TEST, EV-ART
 
 **Delivery outcomes**
 
 - **FR-128** [Confirmed] The system MUST determine release readiness as a deterministic outcome (READY or NOT-READY) citing policy results, test evidence, residual risks, exceptions, and approvals.
-  - AC: The same inputs always give the same outcome and the same cited evidence.
+  - AC: The same inputs always give the same outcome and the same cited evidence. READY requires all of: (1) every mandatory policy check is PASS, (2) zero unapproved exceptions, and (3) tests executed successfully for all functional requirements (ASM-013, DEC-051). PVT results are reported, labelled demonstration, and are not release gates, except that PVT-014 is enforced as a mandatory security policy (DEC-054); the release-owner approval and the evidence required by the constitution remain in force (see the NAC).
   - NAC: READY MUST NOT be issued with a mandatory FAIL, an unapproved or expired exception, missing required evidence, or a missing release-owner approval.
   - Evidence: EV-AUDIT, EV-TEST
 - **FR-129** [Confirmed] The system MUST produce a final engineering summary describing what was built, decisions, deviations, test and validation results, residual risks, and links to evidence.
@@ -437,7 +460,7 @@ Incomplete, unclear, or conflicting input.
   - Evidence: EV-ART
 - **FR-130** [Confirmed] The system MUST record audit-grade execution evidence: each state transition, decision, approval, retry, failure, re-plan, and terminal outcome with actor type, action, timestamp, affected artifact or state, result, and reason.
   - AC: A run can be reconstructed from the audit record alone.
-  - NAC: Audit records MUST NOT be editable or deletable by workflow actors, nor omit any required field.
+  - NAC: Audit records MUST NOT be editable or deletable by workflow actors, nor omit any required field. Audit records are retained for the duration of the prototype and MUST NOT be purged by any automated process during that period (ASM-016).
   - Evidence: EV-AUDIT
 - **FR-131** [Confirmed] The system MUST expose reliability and orchestration measurements (stage durations, retries, failures, fallbacks, compensations, safe-stops, approval wait times, resumptions).
   - AC: Each listed measurement is retrievable per run.
@@ -449,12 +472,13 @@ Incomplete, unclear, or conflicting input.
   - Evidence: EV-ART, EV-AUDIT
 - **FR-133** [Derived: DEC-001] The orchestration system MUST coordinate and gate AI-assisted implementation: AI-generated code and tests MUST pass through human review and validation gates before being considered complete or merged, and the system MUST NOT autonomously deploy or finalize code without those human checkpoints.
   - AC: Each generated code or test artifact has a recorded human review decision and executed validation before its status becomes complete or merge-eligible.
-  - NAC: Generated artifacts MUST NOT be marked complete or merged, and nothing MUST be deployed or finalized, without a recorded human review decision; absence of review MUST NOT count as approval.
+  - NAC: Generated artifacts MUST NOT be marked complete or merged, and nothing MUST be deployed or finalized, without a recorded human review decision; absence of review MUST NOT count as approval. A review decision recorded without the approver credential MUST NOT count (DEC-037).
   - Evidence: EV-APPROVAL, EV-TEST, EV-AUDIT
 
 ### Key Entities
 
-- **Short Link**: a mapping from a unique short code to a normalized destination URL, with creation time, expiry, and status (active, expired).
+- **Short Link**: a mapping from a unique short code to a normalized destination URL, with creation time, expiry, status (active, expired), and the identifier of the creating client (ASM-012).
+- **Client Identifier**: an anonymous identifier for a caller (a service-generated session token or a hash of its IP address, ASM-012) that scopes rate limiting, idempotency keys, and read access to a link's redirect count. No other analytics or personal data is attached to it.
 - **Redirect Event**: one successful resolution of a Short Link, with time and approved analytics fields.
 - **Creation Request**: a submitted URL plus idempotency information (per AMB-004).
 - **Requirement**: a submitted statement of need with ID, normalized form, quality-check results, and ambiguity classification.
@@ -502,13 +526,13 @@ Per DEC-013, every result against these targets MUST be labelled "demonstration"
 | PVT-005 | Sustain 10 creations/second with zero duplicate codes | NFR-003 |
 | PVT-006 | Rate limit proposal: 60 creations/minute and 600 resolutions/minute per client | FR-022 |
 | PVT-007 | Short codes ≥ 7 characters; collision recovery ≤ 3 attempts | FR-007 |
-| PVT-008 | Approval timeout 24 h, then escalate; second timeout 24 h, then safe-stop | FR-115 |
+| PVT-008 | Approval timeout 24 h, then escalate; second timeout 24 h, then safe-stop. Tests simulate these durations with a shortened configuration, labelled "simulated 24-hour timeout" (DEC-044) | FR-115 |
 | PVT-009 | Max 3 retries per recoverable failure | FR-020, FR-117 |
 | PVT-010 | Backoff exponential from 1 s, per-attempt timeout 10 s | FR-020, FR-117 |
 | PVT-011 | Resume after interruption within 60 s with 0 duplicated side effects | FR-121 |
 | PVT-012 | ≥ 90 % statement coverage on domain and orchestration logic; 100 % of FRs have ≥ 1 executed test | NFR-009 |
 | PVT-013 | 100 % of state transitions have a complete audit record | FR-130 |
-| PVT-014 | 0 high/critical unresolved findings from dependency and secret scans at release readiness | FR-127 |
+| PVT-014 | 0 high/critical unresolved findings from dependency and secret scans at release readiness; enforced as a mandatory security policy that blocks release readiness (DEC-054) | FR-127 |
 | PVT-015 | Analytics visit count equals successful redirects exactly in the concurrency test | FR-017 |
 
 ### Evidence Catalogue
@@ -574,6 +598,11 @@ The resolutions are recorded in the Decision Record and incorporated into the af
 - **ASM-009** (decided, DEC-021, DEC-023, DEC-025) The idempotency request signature is (FR-002 normalized URL + canonical metadata + canonical expiry), the exact request fingerprint, and its computation is clock-independent. Any difference under the same key is a 409 Conflict. This supersedes the earlier assumption that expiry was excluded. Canonicalization rules are in FR-015.
 - **ASM-010** (retired) Resolved by DEC-029 to DEC-031 and removed from the open items. ID not reused.
 - **ASM-011** (retired) Resolved by DEC-033 and removed from the open items. ID not reused.
+- **ASM-012** (approved, DEC-051) Anonymous client identification: a client is identified by a service-generated anonymous session token or by a hash of its IP address. The resulting client identifier scopes rate limiting (FR-022), idempotency keys (FR-015), and read access to a link's redirect count (FR-023). The session token takes precedence; the IP-address hash is the fallback only when no session token exists, which prevents NAT-related lockouts (DEC-053). Continuity across first contact is open as DQ-011.
+- **ASM-013** (approved, DEC-051) Mandatory release gates: all mandatory policy checks PASS, zero unapproved exceptions, and tests executed for all functional requirements. PVTs are demonstration goals, not gates, except PVT-014, which is enforced through a mandatory security policy (DEC-054).
+- **ASM-014** (approved, DEC-051) Rollback versus compensation: persistence writes are rolled back by aborting the unit of work; external side effects, if any, require compensation; for this prototype, rollback is primary. Effects that can only be compensated, never rolled back: audit records, recorded approvals, committed code, and anything sent externally (DEC-056).
+- **ASM-015** (approved, DEC-051) Short codes are generated with a cryptographically secure random source, at least 7 characters, base62 (A-Z, a-z, 0-9), case-sensitive, so sequential guessing is infeasible. Enumeration resistance also depends on rate limiting (FR-022); no numeric guess-resistance target is defined.
+- **ASM-016** (approved, DEC-051) Retention: audit logs are retained for the duration of the prototype; analytics data is retained for 30 days (per-event timestamps are purged at 30 days; the aggregate redirect count is kept for the life of the link, DEC-055).
 
 ## Known Limitations
 
@@ -641,6 +670,26 @@ Human decisions recorded in this specification. Approver: the human candidate (A
 | DEC-034 | LIM-002 accepted. The plan MUST implement a mitigation (for example a version field or request ID check) so a lease-expired request cannot commit a result after its record was deleted: on writing its result it checks that the record still exists and matches its creation timestamp or request ID, and aborts the write if not. | LIM-002 | LIM-002 updated; FR-017 NAC added. Authoring-agent tightening, confirmed in DEC-036: the check and the commit must be one atomic conditional operation, otherwise a check-then-write can still race. The response given to the aborted request is a plan detail and is not decided here. |
 | DEC-035 | AMB-013 and ASM-011 are resolved by DEC-033 and removed from the open items. | AMB-013, ASM-011 | AMB-013 marked resolved; ASM-011 retired (ID not reused). No ambiguity remains open. |
 | DEC-036 | The four authoring-agent extensions to DEC-033 and DEC-034 are confirmed: (1) cross-references in FR-003 and FR-020; (2) a transient failure releases its in-flight IN_PROGRESS record; (3) FR-003 to FR-005 rejections and rate-limited outcomes (FR-022) are validation-class, and "blacklisted URL" is an example of a permanent failure, not a new requirement; (4) the record check and the result commit are one atomic conditional operation. Deferred to the plan: what the aborted (lease-expired) request returns to its own client. The specification is complete and Approved. | DEC-033, DEC-034 clarifications | No spec text change beyond removing "pending" wording. Status v1.6. |
+| DEC-037 | Human-approval proof (clarification Q1, Option A): approvals, rejections, and exceptions are accepted only with a separate credential that agents never hold; the audit record stores the authenticated approver identity. An agent attempting to approve is denied and audited. The credential mechanism is an implementation decision for the plan. | Clarification Q1 | FR-114, FR-109, FR-125, FR-133 updated. Role strings (DEC-012) remain, now accompanied by the authenticated identity. |
+| DEC-038 | Stale references removed: the SCN-B text no longer says open details are in AMB-011, and the ID table no longer labels AMB as "(open)". | Review findings | SCN-B paragraph and ID table updated. |
+| DEC-039 | The term "disabled" is removed; link statuses are only active and expired. FR-008 NAC reads "Resolution MUST NOT redirect for unknown or expired codes." | Review finding (FR-008 vs Key Entities) | FR-008 updated. The clause forbidding a permanent redirect (DEC-011) is retained alongside it. |
+| DEC-040 | New FR-023 [Derived]: the service MUST provide the current redirect count for a short link upon creation or via a dedicated inspection endpoint. | Review finding (US-1 had no matching requirement) | FR-023 added; the functional requirement count is now 56. Who may read the count is open as DQ-005. |
+| DEC-041 | If an approver responds after a timeout has already triggered safe-stop, the response is rejected, logged as `late_response_after_safe_stop`, and the workflow remains in safe-stop. | Review finding (edge case with no outcome) | FR-115 NAC and edge-case bullet updated. Implies safe-stop is terminal for that run; recovery path is open as DQ-006. |
+| DEC-042 | FR-125 (block progression) is the immediate, ongoing action while a mandatory policy FAIL is unresolved. FR-120 (safe-stop) is the terminal state entered only if the block cannot be resolved within the defined timeout window. | Review finding (FR-120 vs FR-125 overlap) | FR-120 and FR-125 updated. The window duration is open as DQ-001. |
+| DEC-043 | A change is material if it alters an approved requirement, API schema, security control, or release criterion. A mandatory policy is any policy explicitly marked MUST in the constitution or this specification. | Review finding (undefined terms) | FR-123 and FR-126 updated. Consequences raised as DQ-002, DQ-003, DQ-004; both definitions are now superseded (material change by DEC-046, mandatory policy by DEC-048). |
+| DEC-044 | The 24-hour approval timeout is a logical rule. Demonstration tests simulate it with a shortened test configuration (for example 5 seconds) and explicitly log the event as a "simulated 24-hour timeout". | Review finding (PVT-008 vs 2 to 3 day timebox) | FR-115 AC and NAC and the PVT-008 row updated. Simulated events must never be reported as actual waits (Constitution X). |
+| DEC-045 | DQ-001 resolved: the policy-block resolution window is 24 hours (logical). Tests simulate it with a configurable short timeout (for example 5 seconds), explicitly logged as a simulated timeout. Safe-stop triggers if the FAIL is unresolved. | DQ-001 | FR-125 and FR-120 updated; consistent with DEC-044. |
+| DEC-046 | DQ-002 resolved: a change is material if it alters an approved requirement, architecture, schema, workflow state, security control, or release criterion. Supersedes the material-change definition in DEC-043. | DQ-002 | FR-123 updated; the FR-123 definition and the FR-126 list now coincide. |
+| DEC-047 | DQ-003 resolved: an ambiguity is material if resolving it would change the API contract, persistence schema, security boundary, or orchestration flow. Non-material ambiguities are cosmetic or have safe, documented defaults. | DQ-003 | FR-111 updated. FR-113 applies to material ambiguities. |
+| DEC-048 | DQ-004 resolved (approved assumption): the plan defines a simple versioned JSON policy catalogue (for example v1.0). Every MUST in the constitution is a mandatory policy cited by FR-101 and FR-124. Supersedes the "mandatory policy" definition in DEC-043, which also counted MUST statements in this specification. | DQ-004 | FR-101, FR-124, FR-126 updated. MUST statements in this specification are verified by tests under the release gate (ASM-013), not by catalogue policy checks. Authoring-agent reading, confirmed in DEC-052. |
+| DEC-049 | DQ-005 resolved: only the creating client, identified by the same client identifier used for idempotency and rate limiting, may read a link's redirect count. This prevents information leakage. | DQ-005 | FR-023 updated; Short Link and Client Identifier entities updated. |
+| DEC-050 | DQ-006 resolved: safe-stop is terminal for that run. Recovery requires the human to explicitly start a new workflow run. The stopped run remains permanently in the audit log as SAFE_STOPPED. | DQ-006 | FR-120 and FR-121 updated. |
+| DEC-051 | Approved assumptions recorded as ASM-012 (anonymous client identification), ASM-013 (mandatory release gates), ASM-014 (rollback versus compensation), ASM-015 (short-code generation), ASM-016 (retention). Four consequences surfaced while applying them are recorded as DQ-007 to DQ-010. | Pending topics | FR-006/007, FR-012, FR-015, FR-022, FR-119, FR-128, FR-130 updated. |
+| DEC-052 | DEC-048 reading confirmed: constitution MUSTs are mandatory policies verified by policy catalogue checks; spec MUSTs are verified by the tests-for-every-FR release gate. | DEC-048 | No text change; "pending confirmation" wording removed. |
+| DEC-053 | DQ-007 approved: the session token takes precedence; the IP-address hash is the fallback only when no session token exists, preventing NAT-related lockouts. | DQ-007 | ASM-012 updated. A continuity gap in this rule was found and recorded as DQ-011. |
+| DEC-054 | DQ-008 approved: a mandatory security policy blocks release readiness on any unresolved high or critical dependency or secret-scan finding. This overrides "PVTs are demonstration goals only" for security (PVT-014). | DQ-008 | FR-127, FR-128, PVT-014, ASM-013 updated. Authoring-agent definition, within FR-125: "unresolved" means neither remediated nor covered by a human-approved exception. |
+| DEC-055 | DQ-009 approved: the aggregate redirect count is kept for the life of the link; only per-event timestamps are purged after 30 days, so "N redirects gives count N" remains valid. | DQ-009 | FR-012, ASM-016 updated. |
+| DEC-056 | DQ-010 approved: the effects that can only be compensated, never rolled back, are audit records, recorded approvals, committed code, and anything sent externally. | DQ-010 | FR-119, ASM-014 updated. |
 
 ## Traceability Seed
 
@@ -650,7 +699,7 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 |-------------------|----------------------|--------|-------|-------|----------|
 | FR-001 to FR-005 (creation, validation) | US-1, SCN-A | pending | pending | pending | pending |
 | FR-006 to FR-011 (codes, redirect, expiry) | US-1, SCN-A, SCN-B | pending | pending | pending | pending |
-| FR-012 to FR-014 (analytics) | US-1, SCN-B | pending | pending | pending | pending |
+| FR-012 to FR-014, FR-023 (analytics) | US-1, SCN-B | pending | pending | pending | pending |
 | FR-015 to FR-020 (idempotency, concurrency, persistence) | US-1, SCN-A | pending | pending | pending | pending |
 | FR-021, FR-022 (health, abuse controls) | US-1, US-4 | pending | pending | pending | pending |
 | FR-101 to FR-109 (lifecycle, model, autonomy) | US-2, SCN-A | pending | pending | pending | pending |
@@ -662,4 +711,4 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 | FR-130 to FR-132 (audit, metrics, traceability) | US-5 | pending | pending | pending | pending |
 | FR-133 (gated AI-assisted implementation; DEC-001) | US-2, US-3, SCN-A, SCN-B | pending | pending | pending | pending |
 | CR-001 (optional `metadata` on creation; DEC-014; requirements to be produced by the SCN-B change workflow) | US-1, US-2, SCN-B | pending | pending | pending | pending |
-| Decisions DEC-001 to DEC-036 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
+| Decisions DEC-001 to DEC-056 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |

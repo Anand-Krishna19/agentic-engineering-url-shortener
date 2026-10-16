@@ -4,7 +4,7 @@
 **Created**: 2026-10-16
 **Feature**: [spec.md](../spec.md)
 
-Validation was a single review pass by the authoring agent plus mechanical ID counts: 55 functional requirements (FR-001 to FR-022 and FR-101 to FR-133), each with AC, NAC, and Evidence; 11 NFRs; 15 PVTs; 13 ambiguities (AMB-001 to AMB-013, all resolved); 2 known limitations (LIM-001; LIM-002, accepted, plan mitigation required). The FR count is unchanged by DEC-016, DEC-017, and DEC-021 to DEC-036, which only extended AC/NAC text. It is not a substitute for human review.
+Validation was a single review pass by the authoring agent plus mechanical ID counts: 56 functional requirements (FR-001 to FR-023 and FR-101 to FR-133), each with AC, NAC, and Evidence; 11 NFRs; 15 PVTs; 13 ambiguities (AMB-001 to AMB-013, all resolved); 2 known limitations (LIM-001; LIM-002, accepted, plan mitigation required). The FR count is unchanged by DEC-016, DEC-017, and DEC-021 to DEC-056, which only extended AC/NAC text. It is not a substitute for human review.
 
 ## Content Quality
 
@@ -23,7 +23,7 @@ Validation was a single review pass by the authoring agent plus mechanical ID co
 - [x] All acceptance scenarios are defined (US-1 to US-5, SCN-A to SCN-C)
 - [x] Edge cases are identified
 - [x] Scope is clearly bounded: exclusions EXC-001 to EXC-006 approved (DEC-004)
-- [x] Dependencies and assumptions identified (ASM-001 to ASM-011, CON-001 to CON-005); residual limitations disclosed (LIM-001, LIM-002)
+- [x] Dependencies and assumptions identified (ASM-001 to ASM-016, CON-001 to CON-005); residual limitations disclosed (LIM-001, LIM-002)
 
 ## Feature Readiness
 
@@ -44,10 +44,11 @@ Validation was a single review pass by the authoring agent plus mechanical ID co
 
 ## Notes
 
-- Specification status: Approved v1.6 by the human candidate, 2026-10-16 (DEC-015, DEC-020 to DEC-036). Decisions DEC-001 to DEC-036 are in the spec's Decision Record.
+- Specification status: Approved v1.9 by the human candidate, 2026-10-16 (DEC-015, DEC-020 to DEC-056). Decisions DEC-001 to DEC-056 are in the spec's Decision Record.
 - No ambiguity is open. LIM-002 (a slow, not crashed, request can outlive its 60-second lease) is accepted; the plan MUST implement a mitigation that prevents a lease-expired request from committing (DEC-034). Carried forward to the SCN-B change workflow: `metadata` bounds and logging treatment for CR-001 (ASM-008).
 - Negative acceptance coverage for the idempotency and expiry contract (FR-003, FR-010, FR-015, FR-016, FR-017, FR-018): relative expiry rejected; reordered metadata matches; absent versus empty metadata matches; timezone-offset-equivalent expiry matches; in-flight duplicate rejected; signature never reads the clock; FAILED record replays and cannot be retried with the same key; 60-second lease on IN_PROGRESS; retention starts at COMPLETED or FAILED; post-retention reuse documented as LIM-001.
 - Plan must provide a per-client identifier or anonymous session token (needed for idempotency-key scope, DEC-016, and rate limiting, FR-022).
 - US-5 "Assessment Reviewer" is a read-only audit role; the human candidate / assessor is the approval authority; roles stay distinct (DEC-018).
 - Official assessment requirements were never supplied separately. The only source is the specify input, so "Confirmed" means stated in that input (DEC-005).
 - Carried to `/speckit-plan` (not decided in the spec): what a lease-expired (aborted) request returns to its own client; the mitigation mechanism for LIM-002; a per-client identifier or anonymous session token; the metadata bounds for CR-001 (ASM-008, deferred to the SCN-B workflow).
+- Clarification session 2026-10-16: Q1 answered (approver credential, DEC-037); review findings resolved (DEC-038 to DEC-044); DQ-001 to DQ-010 resolved (DEC-045 to DEC-050, DEC-052 to DEC-056); approved assumptions ASM-012 to ASM-016 recorded (DEC-051). One item remains open: DQ-011 (client identifier continuity across first contact, with a proposed unapproved assumption). Not yet covered by an approved decision: how the orchestrator invokes AI agents (assumed to be an abstract agent interface, a plan detail).
