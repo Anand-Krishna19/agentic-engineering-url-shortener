@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Draft (not approved; awaiting human review)
+**Status**: Approved v1.2 (approved by the human candidate 2026-10-16, DEC-015, DEC-020, DEC-021, DEC-022). Contents: 55 functional requirements (FR-001 to FR-022, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-011 are all resolved; no ambiguity is open. CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
 
 **Input**: User description: "Build a production-grade prototype titled 'Agentic Software Engineering System: URL Shortener' that demonstrates a governed agentic execution system transforming software requirements into reviewable engineering outcomes across the complete SDLC, using a URL shortener as the demonstration domain."
 
@@ -18,7 +18,7 @@ This specification is implementation-independent. It deliberately chooses no fra
 |-------|---------|
 | **Confirmed** | Stated directly in the assessment input. |
 | **Derived** | Not stated verbatim, but necessary to satisfy a Confirmed requirement or the ratified constitution (v1.0.0). Source is cited. |
-| **Proposed** | A validation target or scope choice with no numeric/explicit source. It is an assumption requiring human approval and MUST NOT be represented as a confirmed client requirement. |
+| **Proposed** | A validation target or scope choice with no numeric/explicit source. It is an assumption requiring human approval and MUST NOT be represented as a confirmed client requirement. Once the human candidate approves it (see Decision Record), it is labelled **Approved (demonstration goal)**; it still MUST NOT be represented as a confirmed client requirement. |
 
 **Identifier scheme** (stable; never reused or renumbered):
 
@@ -28,7 +28,8 @@ This specification is implementation-independent. It deliberately chooses no fra
 | `SCN-X` | Required scenario (A, B, C) | `ASM-nnn` | Assumption |
 | `FR-0nn` | Functional requirement, URL shortener domain | `CON-nnn` | Constraint |
 | `FR-1nn` | Functional requirement, orchestration | `AMB-nnn` | Ambiguity (open) |
-| `PVT-nnn` | Proposed validation target | `EXC-nnn` | Exclusion |
+| `PVT-nnn` | Validation target | `EXC-nnn` | Exclusion |
+| `DEC-nnn` | Recorded human decision | `FR-133` onward | Added by a recorded decision |
 | `EV-xxx` | Required evidence type | `SC-nnn` | Success criterion |
 
 Each requirement lists `AC` (observable acceptance criteria), `NAC` (negative acceptance criteria: what MUST NOT happen), and `Evidence` (evidence types from the Evidence Catalogue). Tests, designs, tasks, and implementation will cite these IDs for bidirectional traceability.
@@ -127,7 +128,7 @@ An assessment reviewer reconstructs a complete execution from recorded evidence 
 
 #### SCN-B - Brownfield
 
-An enhancement, refactor, or defect correction against the existing URL shortener.
+An enhancement, refactor, or defect correction against the existing URL shortener. Per DEC-002, the existing URL shortener is the baseline established by SCN-A, so SCN-B is demonstrated after SCN-A. The change request is **CR-001** (DEC-014): add an optional `metadata` field (string key-value pairs) to the short-link creation request. It is chosen to demonstrate API schema evolution, persistence migration, impact analysis, and regression testing. Requirements for CR-001 are produced by the SCN-B change workflow under formal impact analysis and change approval (FR-126), not pre-specified here; open details are in AMB-011. Earlier example change requests (IP-based rate limiting, short-code length) are not selected.
 
 1. **Given** a change request against the existing system, **When** the workflow starts, **Then** before any code change it identifies impacted components, interfaces, data flows, tests, documentation, regression risks, and rollout/rollback considerations.
 2. **Given** that impact analysis is incomplete, **When** implementation is attempted, **Then** implementation does not start.
@@ -166,19 +167,19 @@ Incomplete, unclear, or conflicting input.
   - AC: A valid URL yields a short code; resolving it reaches the original destination.
   - NAC: A creation request MUST NOT return a short code that does not resolve, nor store a partial mapping when creation fails.
   - Evidence: EV-TEST, EV-LOG
-- **FR-002** [Derived: constitution V] The service MUST normalize accepted URLs by documented rules (see AMB-003) before storage and comparison.
-  - AC: Equivalent inputs per the documented rules produce the same normalized destination.
-  - NAC: Normalization MUST NOT alter the destination's meaning, nor silently discard a non-equivalent component.
+- **FR-002** [Derived: constitution V] The service MUST normalize accepted URLs before storage and comparison using standard syntactic normalization only: lowercase scheme and host, strip default ports, and remove URL fragments (DEC-008, resolves AMB-003).
+  - AC: Inputs differing only by scheme/host case, an explicit default port, or a fragment produce the same normalized destination.
+  - NAC: Normalization MUST NOT alter the destination's meaning, and MUST NOT apply any transformation beyond those listed (for example trailing-slash, parameter, or path changes).
   - Evidence: EV-TEST
 
 **Invalid URL rejection**
 
-- **FR-003** [Confirmed] The service MUST reject invalid URLs (malformed, empty, over the maximum length, missing host) with a clear, non-sensitive reason and store nothing.
-  - AC: Each invalid class returns a rejection with a stable reason category.
-  - NAC: A rejected request MUST NOT create a mapping, consume a short code, or write analytics.
+- **FR-003** [Confirmed] The service MUST reject invalid URLs (malformed, empty, longer than 2048 characters, missing host) with a clear, non-sensitive reason and store nothing (DEC-008).
+  - AC: Each invalid class returns a rejection with a stable reason category; a URL of 2048 characters is accepted and one of 2049 is rejected.
+  - NAC: A rejected request MUST NOT create a mapping, consume a short code, or write analytics. A creation request whose expiry is more than 1 year ahead or in the past MUST be rejected with 400 Bad Request and reason code `expiry_out_of_range` (see FR-010, DEC-017).
   - Evidence: EV-TEST
-- **FR-004** [Derived: constitution V] The service MUST accept only an allow-listed set of URL schemes and MUST reject all others, including schemes that execute content or access local resources.
-  - AC: Allow-listed schemes are accepted; disallowed schemes are rejected.
+- **FR-004** [Derived: constitution V] The service MUST accept only the `http` and `https` schemes and MUST reject all others, including schemes that execute content or access local resources (DEC-008).
+  - AC: `http` and `https` URLs are accepted; all other schemes are rejected.
   - NAC: Disallowed schemes MUST NOT be accepted, stored, or redirected to.
   - Evidence: EV-TEST
 - **FR-005** [Derived: constitution V] The service MUST reject destinations that target the service itself or non-public network locations, and MUST address open-redirect and abuse scenarios by documented rules.
@@ -199,9 +200,9 @@ Incomplete, unclear, or conflicting input.
 
 **Redirect resolution**
 
-- **FR-008** [Confirmed] Resolving a valid, unexpired short code MUST redirect to its original destination.
-  - AC: The redirect target equals the normalized stored destination.
-  - NAC: Resolution MUST NOT redirect for unknown, expired, or disabled codes.
+- **FR-008** [Confirmed] Resolving a valid, unexpired short code MUST redirect to its original destination using a temporary redirect (HTTP 302), so that every visit reaches the service and aggressive client caching is avoided (DEC-011, resolves AMB-006).
+  - AC: The redirect target equals the normalized stored destination and the redirect is temporary (302).
+  - NAC: Resolution MUST NOT redirect for unknown, expired, or disabled codes, and MUST NOT use a permanent redirect.
   - Evidence: EV-TEST
 - **FR-009** [Confirmed] Resolving an unknown or malformed short code MUST return a not-found outcome that does not disclose whether such a code ever existed.
   - AC: Unknown and malformed codes yield the same not-found outcome.
@@ -210,9 +211,9 @@ Incomplete, unclear, or conflicting input.
 
 **Expiration**
 
-- **FR-010** [Confirmed] A short link MUST support expiration; after its expiry instant it MUST NOT redirect (policy and defaults per AMB-001).
-  - AC: Before expiry the link redirects; at and after expiry it returns the expired-link outcome.
-  - NAC: An expired link MUST NOT redirect, MUST NOT count as a successful redirect in analytics, and MUST NOT have its code reassigned.
+- **FR-010** [Confirmed] A short link MUST support expiration: the default expiry is 30 days from creation, a consumer MAY optionally specify an expiry of up to 1 year, and after its expiry instant a link MUST NOT redirect and MUST return a distinct expired outcome (HTTP 410 Gone) (DEC-006, resolves AMB-001).
+  - AC: With no expiry supplied the link expires 30 days after creation; a supplied expiry up to 1 year is honored; before expiry the link redirects; at and after expiry it returns the distinct expired outcome (410), different from the not-found outcome of FR-009.
+  - NAC: A requested expiry more than 1 year after creation, or earlier than the current time, MUST be rejected with 400 Bad Request and reason code `expiry_out_of_range`, and MUST NOT create a mapping or consume a short code (DEC-017). An expired link MUST NOT redirect, MUST NOT count as a successful redirect in analytics, and MUST NOT have its code reassigned.
   - Evidence: EV-TEST
 - **FR-011** [Derived] The expiry decision MUST be consistent under concurrent resolution at the expiry boundary (a single, documented comparison rule).
   - AC: Resolutions on either side of the boundary yield deterministic outcomes.
@@ -221,28 +222,28 @@ Incomplete, unclear, or conflicting input.
 
 **Analytics**
 
-- **FR-012** [Confirmed] The service MUST capture basic redirect analytics for each successful redirect (at minimum count and time; further fields per AMB-002).
-  - AC: N successful redirects result in a visit count of N.
-  - NAC: Failed, expired, or unknown resolutions MUST NOT increment the successful-redirect count.
+- **FR-012** [Confirmed] The service MUST capture basic redirect analytics for each successful redirect, limited to redirect count and timestamp only (DEC-007, resolves AMB-002).
+  - AC: N successful redirects result in a visit count of N, each with a timestamp.
+  - NAC: Failed, expired, or unknown resolutions MUST NOT increment the successful-redirect count, and no analytics field beyond count and timestamp MUST be captured.
   - Evidence: EV-TEST, EV-METRIC
 - **FR-013** [Derived: constitution V] Analytics MUST NOT store or log sensitive data beyond the approved fields.
   - AC: Stored analytics fields exactly match the approved field list.
   - NAC: Raw personal identifiers, full secrets, or full destination query secrets MUST NOT appear in analytics or logs.
   - Evidence: EV-TEST, EV-LOG
-- **FR-014** [Derived] A failure of analytics capture MUST NOT corrupt the mapping; whether it blocks the redirect MUST follow a documented policy (see AMB-002).
-  - AC: Injected analytics failure yields the documented behavior and an observable failure record.
-  - NAC: An analytics failure MUST NOT silently drop the failure record.
+- **FR-014** [Derived] A failure of analytics capture MUST NOT corrupt the mapping and MUST NOT block the redirect (fail-open for availability); the failure MUST be logged and audited (DEC-007).
+  - AC: With analytics capture failing, the redirect still succeeds and an observable log record and audit record of the failure exist.
+  - NAC: An analytics failure MUST NOT block or delay the redirect beyond its normal outcome, and MUST NOT silently drop the failure record.
   - Evidence: EV-TEST, EV-LOG
 
 **Idempotency and duplicates**
 
-- **FR-015** [Confirmed] Repeating an identical creation request MUST have a documented idempotent outcome (semantics per AMB-004).
-  - AC: Repeated identical requests do not create unintended duplicate mappings.
-  - NAC: A retry after a timeout MUST NOT create a second, different mapping for the same idempotent request.
+- **FR-015** [Confirmed] Creation MUST be idempotent when the client supplies an `Idempotency-Key` header: repeating a request with the same key MUST NOT create another mapping. The same URL submitted without the header MUST create a new, distinct short link (DEC-009, resolves AMB-004).
+  - AC: Repeated requests with the same `Idempotency-Key` and the same request signature yield one mapping; two requests for the same URL without the header yield two distinct short links. An `Idempotency-Key` is bound 1:1 to the exact request signature: (normalized URL + metadata hash + expiry), where the metadata hash applies once CR-001 exists and the expiry is compared as supplied by the client (an omitted expiry is itself a value, so two requests that both omit it match; the default-derived timestamp is not used, because it differs between retries) (DEC-016, DEC-021). A key is scoped per client (client identifier or anonymous session token), so the same key value used by two different clients is two independent keys. A key is retained for 24 hours; a request reusing a key after that window is treated as a new creation (DEC-016).
+  - NAC: A retry after a timeout carrying the same key MUST NOT create a second, different mapping. A request without the header MUST NOT be deduplicated against earlier requests. Reusing a key with any difference in URL, metadata, or expiry MUST be rejected with 409 Conflict (idempotency key reused with different request signature) and MUST NOT create or modify a mapping; a differing expiry alone MUST NOT be treated as a replay. A key MUST NOT collide across clients. A key older than 24 hours MUST NOT be honored as a replay.
   - Evidence: EV-TEST
-- **FR-016** [Derived] An idempotent request replay MUST be distinguishable from a first-time creation in the response.
-  - AC: A replay is identifiable as a replay.
-  - NAC: A replay MUST NOT be reported as a new creation.
+- **FR-016** [Derived] An idempotent request replay (same `Idempotency-Key`) MUST be distinguishable from a first-time creation in the response.
+  - AC: A replay within the 24-hour retention window, by the same client with the same request signature (same URL, same metadata, same expiry), is identifiable as a replay and returns the original response. A reuse of the key with any difference in URL, metadata, or expiry returns 409 Conflict, which is distinguishable from both a replay and a new creation (DEC-016, DEC-021).
+  - NAC: A replay MUST NOT be reported as a new creation. A 409 Conflict MUST NOT be reported as a replay or as success.
   - Evidence: EV-TEST
 
 **Concurrency**
@@ -428,6 +429,10 @@ Incomplete, unclear, or conflicting input.
   - AC: Traversal works in both directions from any linked item.
   - NAC: A gap MUST NOT be hidden or reported as complete.
   - Evidence: EV-ART, EV-AUDIT
+- **FR-133** [Derived: DEC-001] The orchestration system MUST coordinate and gate AI-assisted implementation: AI-generated code and tests MUST pass through human review and validation gates before being considered complete or merged, and the system MUST NOT autonomously deploy or finalize code without those human checkpoints.
+  - AC: Each generated code or test artifact has a recorded human review decision and executed validation before its status becomes complete or merge-eligible.
+  - NAC: Generated artifacts MUST NOT be marked complete or merged, and nothing MUST be deployed or finalized, without a recorded human review decision; absence of review MUST NOT count as approval.
+  - Evidence: EV-APPROVAL, EV-TEST, EV-AUDIT
 
 ### Key Entities
 
@@ -450,7 +455,7 @@ Incomplete, unclear, or conflicting input.
 
 ## Non-Functional Requirements *(mandatory)*
 
-Numeric targets are Proposed (see Proposed Validation Targets) because the assignment gives none. Each NFR is verifiable by the cited evidence.
+Numeric targets are approved demonstration goals (see Validation Targets and DEC-003), not client requirements, because the assignment gives none. Each NFR is verifiable by the cited evidence.
 
 - **NFR-001 Security** [Derived: constitution V] External input MUST be validated; secrets MUST NOT appear in logs, artifacts, or evidence; defaults MUST be secure; authentication assumptions, rate limiting, and threat scenarios MUST be documented. NAC: no secret in any repository artifact, log, or audit record. Evidence: EV-TEST, EV-ART.
 - **NFR-002 Reliability** [Confirmed: reliability controls] Failures MUST be classified, retried within bounds, and end in a deterministic terminal state (PVT-009, PVT-010, PVT-011). NAC: no silent failure and no unbounded retry. Evidence: EV-TEST, EV-METRIC.
@@ -464,11 +469,13 @@ Numeric targets are Proposed (see Proposed Validation Targets) because the assig
 - **NFR-010 Change safety** [Confirmed: brownfield; Derived: constitution VI] Changes MUST be preceded by impact analysis and be reversible or compensable; regressions MUST be detectable by the existing test suite. NAC: no change without recorded impact analysis. Evidence: EV-ART, EV-TEST.
 - **NFR-011 Controlled autonomy** [Confirmed] Agent actions MUST be bounded by scope, observable, auditable, and interruptible; high-impact actions MUST require human approval. NAC: no agent action outside its scope, and no self-approval. Evidence: EV-AUDIT, EV-TEST.
 
-### Proposed Validation Targets (Assumptions requiring approval)
+### Validation Targets (Approved demonstration goals)
 
-These are **not** confirmed client requirements. Each requires human approval, revision, or rejection before it becomes a gate.
+**Status**: PVT-001 to PVT-015 approved by the human candidate on 2026-10-16 (DEC-003) as the demonstration goals for this prototype.
 
-| ID | Proposed target | Related |
+Per DEC-013, every result against these targets MUST be labelled "demonstration" (single-node local environment), never as a production measurement. These are **not** confirmed client requirements. Any change to a target is a change to an approved item and MUST pass impact analysis and change approval (Constitution VI).
+
+| ID | Target (approved) | Related |
 |----|-----------------|---------|
 | PVT-001 | Redirect resolution p95 latency ≤ 100 ms at reference load | NFR-007 |
 | PVT-002 | Short-link creation p95 latency ≤ 300 ms at reference load | NFR-007 |
@@ -497,7 +504,7 @@ These are **not** confirmed client requirements. Each requires human approval, r
 | EV-ART | Reviewable artifact (document, model, report, scan output) | MUST carry provenance. |
 | EV-APPROVAL | Recorded human decision | MUST be recorded from a human actor; never inferred. |
 
-Proposed or illustrative evidence MUST be labelled as such and MUST NOT be presented as execution evidence.
+Illustrative evidence MUST be labelled as such and MUST NOT be presented as execution evidence.
 
 ## Constraints, Exclusions, Ambiguities
 
@@ -509,7 +516,9 @@ Proposed or illustrative evidence MUST be labelled as such and MUST NOT be prese
 - **CON-004** [Confirmed] No implementation begins before approved specification, plan, tasks, and analysis.
 - **CON-005** [Confirmed] A linear sequence of agents is insufficient evidence of orchestration (see FR-105, FR-106).
 
-### Exclusions (Proposed; require approval)
+### Exclusions (Approved 2026-10-16, DEC-004)
+
+The prototype is API/CLI-based. This statement records the approver's scope; it adds no requirement.
 
 - **EXC-001** A graphical user interface for end users or reviewers.
 - **EXC-002** Actual deployment to a production environment (release readiness is determined, not released).
@@ -518,27 +527,31 @@ Proposed or illustrative evidence MUST be labelled as such and MUST NOT be prese
 - **EXC-005** Link editing and deletion by consumers (see AMB-005).
 - **EXC-006** Distributed multi-region operation and disaster recovery beyond the recoverability targets.
 
-### Ambiguities (Open; each needs human resolution during clarification)
+### Ambiguities (AMB-001 to AMB-011 all resolved; none open)
 
-Each lists a working interpretation used only so the spec is testable. It is **not** a decision.
+The resolutions are recorded in the Decision Record and incorporated into the affected requirements.
 
-- **AMB-001 Expiration policy.** Is expiry optional or mandatory? Is there a default lifetime? Can consumers set it? What is returned after expiry? *Working interpretation: optional consumer-supplied expiry with a configurable default; expired links return a distinct expired outcome.* Affects FR-010, FR-011.
-- **AMB-002 Analytics scope.** Which fields beyond count and time (referrer, client category) are in scope given privacy? Retention period? Does analytics failure block the redirect? *Working interpretation: count and timestamp only; capture failure does not block the redirect and is recorded.* Affects FR-012 to FR-014.
-- **AMB-003 URL normalization and limits.** Which normalizations (case, trailing slash, default ports, fragments, tracking parameters) and what maximum length? Allow-listed schemes? *Working interpretation: standard syntactic normalization only; web schemes only; maximum length proposed at implementation-independent 2048 characters.* Affects FR-002 to FR-005.
-- **AMB-004 Idempotency semantics.** Does the same URL always yield the same code, or is idempotency keyed by a client-supplied request token? *Working interpretation: client-supplied request token; same URL without a token may create separate links.* Affects FR-015, FR-016.
-- **AMB-005 Link management and access.** Are authentication, ownership, custom aliases, disabling, or deletion in scope? *Working interpretation: anonymous creation with documented rate limiting; no custom aliases, editing, or deletion.* Affects FR-022, EXC-005, NFR-001.
-- **AMB-006 Redirect permanence.** Permanent or temporary redirect semantics, given caching versus analytics accuracy. *Working interpretation: temporary, so that every visit is observable.* Affects FR-008, FR-012.
-- **AMB-007 Meaning of "controlled implementation".** Does the orchestration system itself produce the URL shortener code (AI-assisted, human-reviewed), or only coordinate and record work performed elsewhere? *Working interpretation: it coordinates and gates AI-assisted implementation, with generated artifacts reviewed by a human.* Affects FR-103, FR-109, SCN-A.
-- **AMB-008 Brownfield baseline.** The "existing URL shortener" does not yet exist. *Working interpretation: the output of SCN-A is the baseline for SCN-B, and SCN-B is not demonstrable until SCN-A has produced it.* Affects SCN-B.
-- **AMB-009 Approver model.** Who may approve, how identity is established, and whether there are distinct roles (reviewer, release owner). *Working interpretation: a single human candidate holds all approval authority, with roles recorded separately.* Affects FR-114, FR-125, FR-128.
-- **AMB-010 Reference environment for performance claims.** What environment makes PVT figures meaningful? *Working interpretation: a single-node demonstration environment; results labelled demonstration.* Affects NFR-003, NFR-007.
+- **AMB-001 Expiration policy.** **RESOLVED by DEC-006 (2026-10-16).** Affected: FR-010, FR-011.
+- **AMB-002 Analytics scope.** **RESOLVED by DEC-007 (2026-10-16).** Affected: FR-012 to FR-014.
+- **AMB-003 URL normalization and limits.** **RESOLVED by DEC-008 (2026-10-16).** Affected: FR-002 to FR-005.
+- **AMB-004 Idempotency semantics.** **RESOLVED by DEC-009 (2026-10-16).** Affected: FR-015, FR-016. Residual details: AMB-011.
+- **AMB-005 Link management and access.** **RESOLVED by DEC-010 (2026-10-16).** Affected: FR-022, EXC-005, NFR-001.
+- **AMB-006 Redirect permanence.** **RESOLVED by DEC-011 (2026-10-16).** Affected: FR-008, FR-012.
+- **AMB-007 Meaning of "controlled implementation".** **RESOLVED by DEC-001 (2026-10-16).** The orchestration system coordinates and gates AI-assisted implementation; see DEC-001 and FR-133. Affected: FR-103, FR-109, FR-114, SCN-A.
+- **AMB-008 Brownfield baseline.** **RESOLVED by DEC-002 (2026-10-16).** The output of SCN-A is the baseline for SCN-B; see DEC-002. Affected: SCN-B.
+- **AMB-009 Approver model.** **RESOLVED by DEC-012 (2026-10-16).** Affected: FR-114, FR-125, FR-128.
+- **AMB-010 Reference environment for performance claims.** **RESOLVED by DEC-013 (2026-10-16).** Affected: NFR-003, NFR-007.
+- **AMB-011 Idempotency edge cases.** **RESOLVED by DEC-016 and DEC-021 (2026-10-16).** The request signature is (URL + metadata hash + expiry); any difference under the same key is a 409 Conflict. Affected: FR-015, FR-016. The `metadata` bounds and logging treatment originally listed here are not baseline ambiguities: they belong to CR-001 and are recorded as an explicit assumption in ASM-008, to be specified by the SCN-B change workflow.
 
 ## Assumptions
 
 - **ASM-001** The URL shortener is a production-oriented prototype; production deployment is excluded (EXC-002).
-- **ASM-002** All PVT-nnn values are proposals requiring approval and are not client requirements.
-- **ASM-003** A single human candidate acts as requirement owner, approver, and release owner, with roles recorded distinctly (AMB-009).
-- **ASM-004** The working interpretations in AMB-001 to AMB-010 apply only until resolved by clarification.
+- **ASM-002** All PVT-nnn values are approved demonstration goals (DEC-003) and are not client requirements.
+- **ASM-003** A single human holds all approval authority (DEC-012); distinct logical roles (for example Reviewer, Release Owner) are recorded as string values in the audit log for demonstration purposes.
+- **ASM-004** AMB-001 to AMB-011 are resolved (DEC-006 to DEC-013, DEC-016); no ambiguity is open.
+- **ASM-007** The environment is a single-node local demonstration environment; all PVT results are labelled demonstration data, not production measurements (DEC-013).
+- **ASM-008** SCN-B demonstrates change request CR-001 (optional `metadata` field on creation), DEC-014. CR-001's requirements are specified through the SCN-B change workflow, not in this baseline specification. That workflow MUST define the `metadata` bounds (number of pairs, key and value length, permitted characters) and its logging treatment (FR-013 forbids sensitive data in logs); no value is decided here and implementation MUST NOT assume one before it is approved. DEC-016 already fixes that the metadata hash joins the idempotency request signature.
+- **ASM-009** (decided, DEC-021) The idempotency request signature is (normalized URL + metadata hash + expiry), the exact request fingerprint. Any difference in URL, metadata, or expiry under the same key is a 409 Conflict. This supersedes the earlier assumption that expiry was excluded. Expiry is compared as supplied by the client, with an omitted expiry counting as a value (see FR-015).
 - **ASM-005** Agents may be AI-model-driven or deterministic; the specification constrains their behavior and evidence, not their construction.
 - **ASM-006** Reviewers verify from repository artifacts and recorded evidence, not from live access.
 
@@ -555,7 +568,36 @@ Each lists a working interpretation used only so the spec is testable. It is **n
 - **SC-007**: An upstream change in a demonstration run re-plans only the affected downstream stages and requires re-approval of changed approved content.
 - **SC-008**: Release readiness yields READY only when 0 mandatory policy FAILs and 0 unapproved or expired exceptions exist, and NOT-READY otherwise, identically on repeated determination.
 - **SC-009**: 100 % of requirements in this specification trace to at least one scenario or user journey, and 100 % of completed tasks trace to executed test evidence; gaps are listed, not hidden.
-- **SC-010**: All performance and scalability claims are labelled actual or demonstration, and 0 proposed targets are presented as confirmed requirements.
+- **SC-010**: All performance and scalability claims are labelled actual or demonstration, and 0 approved demonstration goals (PVT-nnn) are presented as confirmed client requirements.
+
+## Decision Record
+
+Human decisions recorded in this specification. Approver: the human candidate (ASM-003). Date: 2026-10-16; no time of day was supplied, so none is recorded. Source: the candidate's written decisions in this session.
+
+| ID | Decision | Resolves / approves | Downstream impact identified |
+|----|----------|---------------------|------------------------------|
+| DEC-001 | The orchestration system coordinates and gates AI-assisted implementation. The AI generates code and tests; all generated artifacts MUST pass human review and validation gates before being considered complete or merged. The system does not autonomously deploy or finalize code without human checkpoints. | AMB-007 | Added FR-133. Constrains FR-103 (implementation stage), FR-109 (bounded autonomy), FR-114 (gates), SCN-A. Plan must define the review and validation gates for generated artifacts. |
+| DEC-002 | Approved working interpretation: SCN-A (Greenfield) establishes the baseline URL shortener; SCN-B (Brownfield) then introduces a specific change request (examples: "add IP-based rate limiting", "modify short-code length") against that baseline. | AMB-008 | SCN-B depends on SCN-A output. The specific SCN-B change request is not yet chosen. "Add IP-based rate limiting" would interact with FR-022 and PVT-006 and AMB-005; "modify short-code length" would interact with FR-007 and PVT-007. |
+| DEC-003 | Approved all 15 validation targets as demonstration goals. | PVT-001 to PVT-015 | Targets are demonstration goals, not client requirements (ASM-002, SC-010). Revisions require impact analysis and change approval. |
+| DEC-004 | Approved all 6 exclusions. Scope is an API/CLI-based prototype without a graphical UI, production deployment, multi-tenant billing, or rich analytics, sized for a 2-3 day assessment. | EXC-001 to EXC-006 | No requirement added. Plan must not introduce excluded capabilities. The 2-3 day timebox is recorded as context. |
+| DEC-005 | Acknowledged: "Confirmed" means stated in the initial `/speckit-specify` input. | Source-of-Confirmed question | Class table and checklist note stand as written. |
+| DEC-006 | Default expiry is 30 days. Consumers may optionally specify up to 1 year. Expired links return a distinct expired outcome (HTTP 410 Gone). | AMB-001 | FR-010 updated; FR-011 unchanged. Over-limit rejection outcome decided in DEC-017. |
+| DEC-007 | Analytics captures redirect count and timestamp only. Capture failure MUST NOT block the redirect (fail-open); the failure is logged and audited. | AMB-002 | FR-012, FR-014 updated; FR-013 unchanged. |
+| DEC-008 | Standard syntactic normalization only (lowercase scheme and host, strip default ports, remove fragments). Maximum length 2048 characters. Allowed schemes: `http` and `https` only. | AMB-003 | FR-002, FR-003, FR-004 updated. |
+| DEC-009 | Idempotency is keyed by a client-supplied `Idempotency-Key` header. The same URL without the header creates a new, distinct short link. | AMB-004 | FR-015, FR-016 updated. Residual details decided in DEC-016 (AMB-011). |
+| DEC-010 | Anonymous creation with documented rate limiting. No custom aliases, editing, or deletion by consumers (reinforces EXC-005). | AMB-005 | No requirement text changed; FR-022 and EXC-005 already consistent. |
+| DEC-011 | Redirects use HTTP 302 (temporary) so every visit reaches the service and aggressive browser caching is avoided. | AMB-006 | FR-008 updated. |
+| DEC-012 | A single human candidate holds all approval authority. Distinct logical roles (for example Reviewer, Release Owner) are recorded as string values in the audit log for demonstration. The approver is described in the decision as "the assessor", while US-5 names an "assessment reviewer" as a separate user type; this specification keeps those two user types distinct and treats the single approval authority as the human candidate (ASM-003). | AMB-009 | ASM-003 updated. FR-114, FR-125, FR-128 unchanged; the audit record carries the role string. |
+| DEC-013 | Single-node local demonstration environment. All PVT results MUST be labelled "demonstration" data, not production measurements. | AMB-010 | ASM-007 added. |
+| DEC-014 | Scenario B change request CR-001: add an optional `metadata` field (string key-value pairs) to the short-link creation request, to demonstrate schema evolution, persistence migration, impact analysis, and regression testing. | Selection of the SCN-B change request | SCN-B updated; ASM-008 added. Replaces the earlier illustrative examples in DEC-002. `metadata` bounds and logging are assigned to the SCN-B change workflow (ASM-008). |
+| DEC-015 | Formatting fixes applied (FR-133 reordered after FR-132; header and checklist counts updated to 55 functional requirements). Specification status changed from Draft v0.2 to **Approved** by the human candidate. | Specification approval | Status line updated. Further changes to approved content follow Constitution VI change control. |
+| DEC-016 | Idempotency edge cases: reusing a key with a different request signature is rejected with 409 Conflict; a key is bound 1:1 to a request signature (URL plus metadata hash); key scope is per client (client identifier or anonymous session token); key retention is 24 hours, after which the key is forgotten and a repeat is a new creation. | AMB-011 | FR-015 and FR-016 updated. Requires a client identifier or anonymous session token in the plan (aligns with rate-limiting scope, FR-022). The signature was refined by DEC-021 to include expiry (ASM-009). |
+| DEC-017 | A creation request with expiry more than 1 year ahead, or earlier than the current time, is rejected with 400 Bad Request and reason code `expiry_out_of_range`. | Over-limit expiry outcome (DEC-006 follow-up) | FR-010 and FR-003 updated. |
+| DEC-018 | Confirmed: US-5 "Assessment Reviewer" is a read-only audit role; the human candidate / assessor of DEC-012 is the approval authority. The roles stay distinct. | DEC-012 wording question | No spec text change. |
+| DEC-019 | Confirmed: HTTP 410, HTTP 302, and the `Idempotency-Key` header are API contract decisions, not technology choices; CON-001 holds. | Interface-detail question | No spec text change. |
+| DEC-020 | Specification status re-affirmed as **Approved**, now v1.1 because DEC-016 and DEC-017 changed approved requirement text (FR-003, FR-010, FR-015, FR-016). The functional requirement count is unchanged at 55; only acceptance and negative acceptance criteria were extended. | Specification approval | Status line updated. |
+| DEC-021 | Expiry MUST be included in the idempotency signature, which is now (URL + metadata hash + expiry). Same key with the same URL, metadata, and expiry is a replay (original response returned, marked as replay). Same key with any difference in URL, metadata, or expiry is rejected with 409 Conflict. Rationale given: defensive by default (as in mature idempotency systems), prevents a client reusing a key with a different expiry by mistake, keeps the key equal to an exact request fingerprint, and aligns with FR-015/FR-016. | ASM-009 (and refines DEC-016) | FR-015, FR-016, AMB-011, ASM-009 updated. Clarification added by the authoring agent for testability: expiry is compared as supplied, an omitted expiry counts as a value, and the default-derived timestamp is not compared. |
+| DEC-022 | ASM-008 approved as written: `metadata` bounds (pair count, key length, value length, logging behavior) are not needed until Scenario B and MUST be defined by the brownfield workflow before CR-001 implementation. | ASM-008 | No text change; ASM-008 remains deferred work for SCN-B. |
 
 ## Traceability Seed
 
@@ -575,3 +617,6 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 | FR-124 to FR-127 (policy, change control, security) | US-3, US-4, SCN-B | pending | pending | pending | pending |
 | FR-128, FR-129 (readiness, summary) | US-4, US-5, SCN-A | pending | pending | pending | pending |
 | FR-130 to FR-132 (audit, metrics, traceability) | US-5 | pending | pending | pending | pending |
+| FR-133 (gated AI-assisted implementation; DEC-001) | US-2, US-3, SCN-A, SCN-B | pending | pending | pending | pending |
+| CR-001 (optional `metadata` on creation; DEC-014; requirements to be produced by the SCN-B change workflow) | US-1, US-2, SCN-B | pending | pending | pending | pending |
+| Decisions DEC-001 to DEC-015 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
