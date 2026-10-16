@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Draft (not approved; awaiting human review)
+**Status**: Draft v0.2 (clarification decisions DEC-001 to DEC-005 recorded 2026-10-16; the specification as a whole is not yet approved; AMB-001 to AMB-006, AMB-009, and AMB-010 remain open)
 
 **Input**: User description: "Build a production-grade prototype titled 'Agentic Software Engineering System: URL Shortener' that demonstrates a governed agentic execution system transforming software requirements into reviewable engineering outcomes across the complete SDLC, using a URL shortener as the demonstration domain."
 
@@ -18,7 +18,7 @@ This specification is implementation-independent. It deliberately chooses no fra
 |-------|---------|
 | **Confirmed** | Stated directly in the assessment input. |
 | **Derived** | Not stated verbatim, but necessary to satisfy a Confirmed requirement or the ratified constitution (v1.0.0). Source is cited. |
-| **Proposed** | A validation target or scope choice with no numeric/explicit source. It is an assumption requiring human approval and MUST NOT be represented as a confirmed client requirement. |
+| **Proposed** | A validation target or scope choice with no numeric/explicit source. It is an assumption requiring human approval and MUST NOT be represented as a confirmed client requirement. Once the human candidate approves it (see Decision Record), it is labelled **Approved (demonstration goal)**; it still MUST NOT be represented as a confirmed client requirement. |
 
 **Identifier scheme** (stable; never reused or renumbered):
 
@@ -28,7 +28,8 @@ This specification is implementation-independent. It deliberately chooses no fra
 | `SCN-X` | Required scenario (A, B, C) | `ASM-nnn` | Assumption |
 | `FR-0nn` | Functional requirement, URL shortener domain | `CON-nnn` | Constraint |
 | `FR-1nn` | Functional requirement, orchestration | `AMB-nnn` | Ambiguity (open) |
-| `PVT-nnn` | Proposed validation target | `EXC-nnn` | Exclusion |
+| `PVT-nnn` | Validation target | `EXC-nnn` | Exclusion |
+| `DEC-nnn` | Recorded human decision | `FR-133` onward | Added by a recorded decision |
 | `EV-xxx` | Required evidence type | `SC-nnn` | Success criterion |
 
 Each requirement lists `AC` (observable acceptance criteria), `NAC` (negative acceptance criteria: what MUST NOT happen), and `Evidence` (evidence types from the Evidence Catalogue). Tests, designs, tasks, and implementation will cite these IDs for bidirectional traceability.
@@ -127,7 +128,7 @@ An assessment reviewer reconstructs a complete execution from recorded evidence 
 
 #### SCN-B - Brownfield
 
-An enhancement, refactor, or defect correction against the existing URL shortener.
+An enhancement, refactor, or defect correction against the existing URL shortener. Per DEC-002, the existing URL shortener is the baseline established by SCN-A, so SCN-B is demonstrated after SCN-A. Example change requests named by the approver (illustrative, not yet selected): "add IP-based rate limiting" or "modify short-code length". The specific change request MUST be chosen and recorded before SCN-B starts.
 
 1. **Given** a change request against the existing system, **When** the workflow starts, **Then** before any code change it identifies impacted components, interfaces, data flows, tests, documentation, regression risks, and rollout/rollback considerations.
 2. **Given** that impact analysis is incomplete, **When** implementation is attempted, **Then** implementation does not start.
@@ -424,6 +425,10 @@ Incomplete, unclear, or conflicting input.
   - AC: Each listed measurement is retrievable per run.
   - NAC: Measurements MUST NOT be fabricated; demonstration figures MUST be labelled as such.
   - Evidence: EV-METRIC
+- **FR-133** [Derived: DEC-001] The orchestration system MUST coordinate and gate AI-assisted implementation: AI-generated code and tests MUST pass through human review and validation gates before being considered complete or merged, and the system MUST NOT autonomously deploy or finalize code without those human checkpoints.
+  - AC: Each generated code or test artifact has a recorded human review decision and executed validation before its status becomes complete or merge-eligible.
+  - NAC: Generated artifacts MUST NOT be marked complete or merged, and nothing MUST be deployed or finalized, without a recorded human review decision; absence of review MUST NOT count as approval.
+  - Evidence: EV-APPROVAL, EV-TEST, EV-AUDIT
 - **FR-132** [Derived: constitution X] The system MUST maintain bidirectional traceability linking requirement, scenario, decision, design, task, implementation, test, validation, documentation, and evidence, and MUST show gaps explicitly.
   - AC: Traversal works in both directions from any linked item.
   - NAC: A gap MUST NOT be hidden or reported as complete.
@@ -450,7 +455,7 @@ Incomplete, unclear, or conflicting input.
 
 ## Non-Functional Requirements *(mandatory)*
 
-Numeric targets are Proposed (see Proposed Validation Targets) because the assignment gives none. Each NFR is verifiable by the cited evidence.
+Numeric targets are approved demonstration goals (see Validation Targets and DEC-003), not client requirements, because the assignment gives none. Each NFR is verifiable by the cited evidence.
 
 - **NFR-001 Security** [Derived: constitution V] External input MUST be validated; secrets MUST NOT appear in logs, artifacts, or evidence; defaults MUST be secure; authentication assumptions, rate limiting, and threat scenarios MUST be documented. NAC: no secret in any repository artifact, log, or audit record. Evidence: EV-TEST, EV-ART.
 - **NFR-002 Reliability** [Confirmed: reliability controls] Failures MUST be classified, retried within bounds, and end in a deterministic terminal state (PVT-009, PVT-010, PVT-011). NAC: no silent failure and no unbounded retry. Evidence: EV-TEST, EV-METRIC.
@@ -464,11 +469,13 @@ Numeric targets are Proposed (see Proposed Validation Targets) because the assig
 - **NFR-010 Change safety** [Confirmed: brownfield; Derived: constitution VI] Changes MUST be preceded by impact analysis and be reversible or compensable; regressions MUST be detectable by the existing test suite. NAC: no change without recorded impact analysis. Evidence: EV-ART, EV-TEST.
 - **NFR-011 Controlled autonomy** [Confirmed] Agent actions MUST be bounded by scope, observable, auditable, and interruptible; high-impact actions MUST require human approval. NAC: no agent action outside its scope, and no self-approval. Evidence: EV-AUDIT, EV-TEST.
 
-### Proposed Validation Targets (Assumptions requiring approval)
+### Validation Targets (Approved demonstration goals)
 
-These are **not** confirmed client requirements. Each requires human approval, revision, or rejection before it becomes a gate.
+**Status**: PVT-001 to PVT-015 approved by the human candidate on 2026-10-16 (DEC-003) as the demonstration goals for this prototype.
 
-| ID | Proposed target | Related |
+These are **not** confirmed client requirements. Any change to a target is a change to an approved item and MUST pass impact analysis and change approval (Constitution VI).
+
+| ID | Target (approved) | Related |
 |----|-----------------|---------|
 | PVT-001 | Redirect resolution p95 latency ≤ 100 ms at reference load | NFR-007 |
 | PVT-002 | Short-link creation p95 latency ≤ 300 ms at reference load | NFR-007 |
@@ -497,7 +504,7 @@ These are **not** confirmed client requirements. Each requires human approval, r
 | EV-ART | Reviewable artifact (document, model, report, scan output) | MUST carry provenance. |
 | EV-APPROVAL | Recorded human decision | MUST be recorded from a human actor; never inferred. |
 
-Proposed or illustrative evidence MUST be labelled as such and MUST NOT be presented as execution evidence.
+Illustrative evidence MUST be labelled as such and MUST NOT be presented as execution evidence.
 
 ## Constraints, Exclusions, Ambiguities
 
@@ -509,7 +516,9 @@ Proposed or illustrative evidence MUST be labelled as such and MUST NOT be prese
 - **CON-004** [Confirmed] No implementation begins before approved specification, plan, tasks, and analysis.
 - **CON-005** [Confirmed] A linear sequence of agents is insufficient evidence of orchestration (see FR-105, FR-106).
 
-### Exclusions (Proposed; require approval)
+### Exclusions (Approved 2026-10-16, DEC-004)
+
+The prototype is API/CLI-based. This statement records the approver's scope; it adds no requirement.
 
 - **EXC-001** A graphical user interface for end users or reviewers.
 - **EXC-002** Actual deployment to a production environment (release readiness is determined, not released).
@@ -518,9 +527,9 @@ Proposed or illustrative evidence MUST be labelled as such and MUST NOT be prese
 - **EXC-005** Link editing and deletion by consumers (see AMB-005).
 - **EXC-006** Distributed multi-region operation and disaster recovery beyond the recoverability targets.
 
-### Ambiguities (Open; each needs human resolution during clarification)
+### Ambiguities (AMB-007 and AMB-008 resolved; the other eight remain open)
 
-Each lists a working interpretation used only so the spec is testable. It is **not** a decision.
+Open items list a working interpretation used only so the spec is testable. It is **not** a decision. Open: AMB-001 to AMB-006, AMB-009, AMB-010.
 
 - **AMB-001 Expiration policy.** Is expiry optional or mandatory? Is there a default lifetime? Can consumers set it? What is returned after expiry? *Working interpretation: optional consumer-supplied expiry with a configurable default; expired links return a distinct expired outcome.* Affects FR-010, FR-011.
 - **AMB-002 Analytics scope.** Which fields beyond count and time (referrer, client category) are in scope given privacy? Retention period? Does analytics failure block the redirect? *Working interpretation: count and timestamp only; capture failure does not block the redirect and is recorded.* Affects FR-012 to FR-014.
@@ -528,17 +537,17 @@ Each lists a working interpretation used only so the spec is testable. It is **n
 - **AMB-004 Idempotency semantics.** Does the same URL always yield the same code, or is idempotency keyed by a client-supplied request token? *Working interpretation: client-supplied request token; same URL without a token may create separate links.* Affects FR-015, FR-016.
 - **AMB-005 Link management and access.** Are authentication, ownership, custom aliases, disabling, or deletion in scope? *Working interpretation: anonymous creation with documented rate limiting; no custom aliases, editing, or deletion.* Affects FR-022, EXC-005, NFR-001.
 - **AMB-006 Redirect permanence.** Permanent or temporary redirect semantics, given caching versus analytics accuracy. *Working interpretation: temporary, so that every visit is observable.* Affects FR-008, FR-012.
-- **AMB-007 Meaning of "controlled implementation".** Does the orchestration system itself produce the URL shortener code (AI-assisted, human-reviewed), or only coordinate and record work performed elsewhere? *Working interpretation: it coordinates and gates AI-assisted implementation, with generated artifacts reviewed by a human.* Affects FR-103, FR-109, SCN-A.
-- **AMB-008 Brownfield baseline.** The "existing URL shortener" does not yet exist. *Working interpretation: the output of SCN-A is the baseline for SCN-B, and SCN-B is not demonstrable until SCN-A has produced it.* Affects SCN-B.
+- **AMB-007 Meaning of "controlled implementation".** **RESOLVED by DEC-001 (2026-10-16).** The orchestration system coordinates and gates AI-assisted implementation; see DEC-001 and FR-133. Affected: FR-103, FR-109, FR-114, SCN-A.
+- **AMB-008 Brownfield baseline.** **RESOLVED by DEC-002 (2026-10-16).** The output of SCN-A is the baseline for SCN-B; see DEC-002. Affected: SCN-B.
 - **AMB-009 Approver model.** Who may approve, how identity is established, and whether there are distinct roles (reviewer, release owner). *Working interpretation: a single human candidate holds all approval authority, with roles recorded separately.* Affects FR-114, FR-125, FR-128.
 - **AMB-010 Reference environment for performance claims.** What environment makes PVT figures meaningful? *Working interpretation: a single-node demonstration environment; results labelled demonstration.* Affects NFR-003, NFR-007.
 
 ## Assumptions
 
 - **ASM-001** The URL shortener is a production-oriented prototype; production deployment is excluded (EXC-002).
-- **ASM-002** All PVT-nnn values are proposals requiring approval and are not client requirements.
+- **ASM-002** All PVT-nnn values are approved demonstration goals (DEC-003) and are not client requirements.
 - **ASM-003** A single human candidate acts as requirement owner, approver, and release owner, with roles recorded distinctly (AMB-009).
-- **ASM-004** The working interpretations in AMB-001 to AMB-010 apply only until resolved by clarification.
+- **ASM-004** The working interpretations in AMB-001 to AMB-006, AMB-009, and AMB-010 apply only until resolved by clarification.
 - **ASM-005** Agents may be AI-model-driven or deterministic; the specification constrains their behavior and evidence, not their construction.
 - **ASM-006** Reviewers verify from repository artifacts and recorded evidence, not from live access.
 
@@ -555,7 +564,19 @@ Each lists a working interpretation used only so the spec is testable. It is **n
 - **SC-007**: An upstream change in a demonstration run re-plans only the affected downstream stages and requires re-approval of changed approved content.
 - **SC-008**: Release readiness yields READY only when 0 mandatory policy FAILs and 0 unapproved or expired exceptions exist, and NOT-READY otherwise, identically on repeated determination.
 - **SC-009**: 100 % of requirements in this specification trace to at least one scenario or user journey, and 100 % of completed tasks trace to executed test evidence; gaps are listed, not hidden.
-- **SC-010**: All performance and scalability claims are labelled actual or demonstration, and 0 proposed targets are presented as confirmed requirements.
+- **SC-010**: All performance and scalability claims are labelled actual or demonstration, and 0 approved demonstration goals (PVT-nnn) are presented as confirmed client requirements.
+
+## Decision Record
+
+Human decisions recorded in this specification. Approver: the human candidate (ASM-003). Date: 2026-10-16; no time of day was supplied, so none is recorded. Source: the candidate's written decisions in this session.
+
+| ID | Decision | Resolves / approves | Downstream impact identified |
+|----|----------|---------------------|------------------------------|
+| DEC-001 | The orchestration system coordinates and gates AI-assisted implementation. The AI generates code and tests; all generated artifacts MUST pass human review and validation gates before being considered complete or merged. The system does not autonomously deploy or finalize code without human checkpoints. | AMB-007 | Added FR-133. Constrains FR-103 (implementation stage), FR-109 (bounded autonomy), FR-114 (gates), SCN-A. Plan must define the review and validation gates for generated artifacts. |
+| DEC-002 | Approved working interpretation: SCN-A (Greenfield) establishes the baseline URL shortener; SCN-B (Brownfield) then introduces a specific change request (examples: "add IP-based rate limiting", "modify short-code length") against that baseline. | AMB-008 | SCN-B depends on SCN-A output. The specific SCN-B change request is not yet chosen. "Add IP-based rate limiting" would interact with FR-022 and PVT-006 and AMB-005; "modify short-code length" would interact with FR-007 and PVT-007. |
+| DEC-003 | Approved all 15 validation targets as demonstration goals. | PVT-001 to PVT-015 | Targets are demonstration goals, not client requirements (ASM-002, SC-010). Revisions require impact analysis and change approval. |
+| DEC-004 | Approved all 6 exclusions. Scope is an API/CLI-based prototype without a graphical UI, production deployment, multi-tenant billing, or rich analytics, sized for a 2-3 day assessment. | EXC-001 to EXC-006 | No requirement added. Plan must not introduce excluded capabilities. The 2-3 day timebox is recorded as context. |
+| DEC-005 | Acknowledged: "Confirmed" means stated in the initial `/speckit-specify` input. | Source-of-Confirmed question | Class table and checklist note stand as written. |
 
 ## Traceability Seed
 
@@ -575,3 +596,4 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 | FR-124 to FR-127 (policy, change control, security) | US-3, US-4, SCN-B | pending | pending | pending | pending |
 | FR-128, FR-129 (readiness, summary) | US-4, US-5, SCN-A | pending | pending | pending | pending |
 | FR-130 to FR-132 (audit, metrics, traceability) | US-5 | pending | pending | pending | pending |
+| FR-133 (gated AI-assisted implementation; DEC-001) | US-2, US-3, SCN-A, SCN-B | pending | pending | pending | pending |
