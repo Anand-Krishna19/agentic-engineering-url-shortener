@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Approved v1.9 (approved by the human candidate 2026-10-16, DEC-015, DEC-020 to DEC-056). Contents: 56 functional requirements (FR-001 to FR-023, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-013 are all resolved; no ambiguity is open. Two known limitations are recorded and accepted (LIM-001; LIM-002, which requires a plan mitigation). CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
+**Status**: Approved v1.9 (approved by the human candidate 2026-10-16, DEC-015, DEC-020 to DEC-058). Contents: 56 functional requirements (FR-001 to FR-023, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-013 are all resolved; no ambiguity is open. Three known limitations are recorded (LIM-001 and LIM-002 accepted, LIM-002 requiring a plan mitigation; LIM-003 disclosed for acknowledgement). CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
 
 **Input**: User description: "Build a production-grade prototype titled 'Agentic Software Engineering System: URL Shortener' that demonstrates a governed agentic execution system transforming software requirements into reviewable engineering outcomes across the complete SDLC, using a URL shortener as the demonstration domain."
 
@@ -46,11 +46,9 @@ Review findings (contradictions, undefined terms, missing requirements) resolved
 - Q: Resolve the deferred questions DQ-001 to DQ-006 and the pending topics (client identification, release gates, rollback versus compensation, short codes, retention). → A: Approved as recorded in DEC-045 to DEC-051 and ASM-012 to ASM-016.
 - Q: Approve the DEC-048 reading and the proposed assumptions DQ-007 to DQ-010. → A: Approved as recorded in DEC-052 to DEC-056.
 
-**Deferred questions and residual assumptions.** DQ-001 to DQ-010 are resolved (DEC-045 to DEC-050, DEC-053 to DEC-056). One item remains, found while applying DQ-007; its proposed assumption is unapproved until the human candidate approves it, and implementation may not assume it before then.
+- Q: Approve DQ-011 (token binding and dual-dimension rate limiting) and confirm the version and the agent-interface assumption. → A: Approved as recorded in DEC-057 and DEC-058.
 
-| ID | Question | Impact | Current (proposed) assumption | Owner | Required decision point |
-|----|----------|--------|-------------------------------|-------|-------------------------|
-| DQ-011 | How does the client identifier stay the same across a client's first contact, when a tokenless first request is identified by IP hash (DEC-053) and the session token is issued only in the response? | A client's first link would be owned by its IP-hash identifier, but its later token-bearing requests would carry a different identifier, so the same client could lose count access and idempotency scope. Also, if clients can mint new tokens freely, discarding tokens could reset rate limits | The token issued in the first response is bound to the identifier used at first contact, so ownership and idempotency scope continue unchanged; rate limiting also applies per IP-address hash so that discarding or re-minting tokens does not reset limits | Human candidate | Before `/speckit-plan` |
+**Deferred questions and residual assumptions.** DQ-001 to DQ-011 are all resolved (DEC-045 to DEC-050, DEC-053 to DEC-057). No question is open. Disclosed limitations (LIM-001 to LIM-003) are listed under Known Limitations.
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - API Consumer Creates and Uses Short Links (Priority: P1)
@@ -261,7 +259,7 @@ Incomplete, unclear, or conflicting input.
     - Metadata component (applies once CR-001 exists; before then every request carries the empty map): canonically encoded before hashing with keys sorted lexicographically, UTF-8, and no insignificant whitespace. Absent metadata and an empty metadata map both canonicalize to `{}` and yield the same signature. Keys are case-sensitive. Reordered pairs yield the same signature (DEC-025). Bounds are deferred to ASM-008.
     - URL component: the FR-002 normalized URL, never the raw client input (DEC-025).
     - An idempotency record has states IN_PROGRESS, COMPLETED, and FAILED (DEC-026). Same key and same signature while IN_PROGRESS returns 409 with reason `idempotency_request_in_progress` and creates no second mapping. Same key and same signature when COMPLETED replays the stored response, marked as a replay (FR-016). Same key and same signature when FAILED replays the stored failure response, marked as a replay, for the full retention window; a key is consumed by its outcome, including failure, and a client that wants to retry after a failure MUST use a new key (DEC-029). A FAILED idempotency record is created only for definitive failures (permanent errors). Validation rejections and transient failures do not create a record and do not consume the key, so the client can correct or retry the request with the same key (DEC-033). For this rule, content rejections under FR-003 to FR-005, the expiry errors of FR-010 (`expiry_out_of_range`, `unsupported_expiry_representation`), and rate-limited outcomes (FR-022) are validation-class rejections that occur before any idempotency record exists; a transient failure is a persistence timeout or similar failure that exhausts bounded retries (FR-019, FR-020), and its in-flight record is released rather than marked FAILED. An IN_PROGRESS record has a 60-second lease (FR-017, DEC-030). Same key and different signature returns 409 Conflict (idempotency key reused with different request signature).
-    - A key is scoped per client (the client identifier of ASM-012), so the same key value used by two clients is two independent keys. The 24-hour idempotency retention window starts when the record transitions to COMPLETED or FAILED, not when the record is created (DEC-016, DEC-031). Behavior after the retention window is documented in LIM-001.
+    - A key is scoped per client (the client identifier of ASM-012; a session token is bound to the identifier used at first contact, so a client's keys keep their scope after its token is issued, DEC-057), so the same key value used by two clients is two independent keys. The 24-hour idempotency retention window starts when the record transitions to COMPLETED or FAILED, not when the record is created (DEC-016, DEC-031). Behavior after the retention window is documented in LIM-001.
   - NAC:
     - A retry after a timeout carrying the same key and signature MUST NOT create a second mapping. A request without the header MUST NOT be deduplicated against earlier requests.
     - Reusing a key with any difference in URL, metadata, or expiry MUST be rejected with 409 Conflict and MUST NOT create or modify a mapping; a differing expiry alone MUST NOT be treated as a replay.
@@ -308,9 +306,9 @@ Incomplete, unclear, or conflicting input.
   - AC: Healthy state reports ready; a failed dependency reports not-ready while liveness remains accurate.
   - NAC: Health output MUST NOT expose secrets, credentials, or internal topology.
   - Evidence: EV-TEST
-- **FR-022** [Derived: constitution V] The service MUST apply rate limiting to creation and resolution by a documented policy per client identifier (ASM-012; thresholds proposed in PVT-006).
-  - AC: Requests above the limit receive a defined rate-limited outcome.
-  - NAC: Rate limiting MUST NOT block unrelated clients or leak other clients' usage.
+- **FR-022** [Derived: constitution V] The service MUST apply rate limiting to creation and resolution by a documented policy applied on both dimensions, per session token and per IP-address hash (ASM-012, DEC-057; thresholds proposed in PVT-006).
+  - AC: Requests above the limit receive a defined rate-limited outcome; a request that exceeds either the per-token limit or the per-IP-address-hash limit is rate-limited.
+  - NAC: Rate limiting MUST NOT block a client that has a different session token and a different IP-address hash, or leak other clients' usage. Discarding or re-minting a session token MUST NOT reset or bypass the per-IP-address-hash limit (DEC-057). Clients that share an IP-address hash share that limit (LIM-003).
   - Evidence: EV-TEST
 
 **Analytics inspection**
@@ -478,7 +476,7 @@ Incomplete, unclear, or conflicting input.
 ### Key Entities
 
 - **Short Link**: a mapping from a unique short code to a normalized destination URL, with creation time, expiry, status (active, expired), and the identifier of the creating client (ASM-012).
-- **Client Identifier**: an anonymous identifier for a caller (a service-generated session token or a hash of its IP address, ASM-012) that scopes rate limiting, idempotency keys, and read access to a link's redirect count. No other analytics or personal data is attached to it.
+- **Client Identifier**: an anonymous identifier for a caller (a service-generated session token or a hash of its IP address, ASM-012; a token is bound to the identifier used at first contact, DEC-057) that scopes rate limiting, idempotency keys, and read access to a link's redirect count. No other analytics or personal data is attached to it.
 - **Redirect Event**: one successful resolution of a Short Link, with time and approved analytics fields.
 - **Creation Request**: a submitted URL plus idempotency information (per AMB-004).
 - **Requirement**: a submitted statement of need with ID, normalized form, quality-check results, and ambiguity classification.
@@ -598,11 +596,12 @@ The resolutions are recorded in the Decision Record and incorporated into the af
 - **ASM-009** (decided, DEC-021, DEC-023, DEC-025) The idempotency request signature is (FR-002 normalized URL + canonical metadata + canonical expiry), the exact request fingerprint, and its computation is clock-independent. Any difference under the same key is a 409 Conflict. This supersedes the earlier assumption that expiry was excluded. Canonicalization rules are in FR-015.
 - **ASM-010** (retired) Resolved by DEC-029 to DEC-031 and removed from the open items. ID not reused.
 - **ASM-011** (retired) Resolved by DEC-033 and removed from the open items. ID not reused.
-- **ASM-012** (approved, DEC-051) Anonymous client identification: a client is identified by a service-generated anonymous session token or by a hash of its IP address. The resulting client identifier scopes rate limiting (FR-022), idempotency keys (FR-015), and read access to a link's redirect count (FR-023). The session token takes precedence; the IP-address hash is the fallback only when no session token exists, which prevents NAT-related lockouts (DEC-053). Continuity across first contact is open as DQ-011.
+- **ASM-012** (approved, DEC-051) Anonymous client identification: a client is identified by a service-generated anonymous session token or by a hash of its IP address. The resulting client identifier scopes rate limiting (FR-022), idempotency keys (FR-015), and read access to a link's redirect count (FR-023). The session token takes precedence; the IP-address hash is the fallback only when no session token exists, which prevents NAT-related lockouts (DEC-053). The session token issued in the first response is bound to the identifier used at first contact (the IP-address hash), so ownership and idempotency scope continue unchanged, and rate limiting applies on both dimensions, per token and per IP-address hash, so discarding tokens does not reset limits (DEC-057).
 - **ASM-013** (approved, DEC-051) Mandatory release gates: all mandatory policy checks PASS, zero unapproved exceptions, and tests executed for all functional requirements. PVTs are demonstration goals, not gates, except PVT-014, which is enforced through a mandatory security policy (DEC-054).
 - **ASM-014** (approved, DEC-051) Rollback versus compensation: persistence writes are rolled back by aborting the unit of work; external side effects, if any, require compensation; for this prototype, rollback is primary. Effects that can only be compensated, never rolled back: audit records, recorded approvals, committed code, and anything sent externally (DEC-056).
 - **ASM-015** (approved, DEC-051) Short codes are generated with a cryptographically secure random source, at least 7 characters, base62 (A-Z, a-z, 0-9), case-sensitive, so sequential guessing is infeasible. Enumeration resistance also depends on rate limiting (FR-022); no numeric guess-resistance target is defined.
 - **ASM-016** (approved, DEC-051) Retention: audit logs are retained for the duration of the prototype; analytics data is retained for 30 days (per-event timestamps are purged at 30 days; the aggregate redirect count is kept for the life of the link, DEC-055).
+- **ASM-017** (approved, DEC-058) The specification defines the orchestration contract (what the orchestrator expects from agents: FR-103, FR-104, FR-109), not the invocation mechanism. The plan defines the abstract agent interface.
 
 ## Known Limitations
 
@@ -610,6 +609,7 @@ Residual limitations are disclosed, not hidden (Constitution XI, item 8).
 
 - **LIM-001** (DEC-028) After the 24-hour idempotency retention window, a reused `Idempotency-Key` is treated as a new request and MAY create a second mapping. Rationale: retention is bounded to limit stored state, and this is a prototype. A client needing stronger guarantees must not reuse keys across that window. Verification: a test MUST demonstrate the documented behavior after the window; it is expected behavior, not a failure.
 - **LIM-002** (accepted by the human candidate, DEC-034) A request that is still running when its 60-second lease expires may be superseded by a retry: its IN_PROGRESS record is deleted and the key becomes available for a fresh attempt. The plan MUST implement a mitigation (for example a version field or a request ID check) to prevent a lease-expired request from committing a result after its record has been deleted: when a request writes its result it checks that the idempotency record still exists and matches its creation timestamp or request ID, and aborts the write if not (optimistic concurrency control). The mitigation mechanism is a plan decision; no technology is implied here. Verification: a test MUST demonstrate that a lease-expired request cannot commit.
+- **LIM-003** (identified by the authoring agent as a consequence of DEC-057; disclosed for acknowledgement) Because rate limiting also applies per IP-address hash, unrelated clients that share an address (for example behind one network gateway) share that limit, so one heavy client can cause others to be rate-limited. The dual-dimension design accepts this in exchange for resisting token discarding. A per-IP-address-hash threshold set above the per-token threshold would reduce but not remove the effect; no value is chosen here.
 - **ASM-005** Agents may be AI-model-driven or deterministic; the specification constrains their behavior and evidence, not their construction.
 - **ASM-006** Reviewers verify from repository artifacts and recorded evidence, not from live access.
 
@@ -690,6 +690,8 @@ Human decisions recorded in this specification. Approver: the human candidate (A
 | DEC-054 | DQ-008 approved: a mandatory security policy blocks release readiness on any unresolved high or critical dependency or secret-scan finding. This overrides "PVTs are demonstration goals only" for security (PVT-014). | DQ-008 | FR-127, FR-128, PVT-014, ASM-013 updated. Authoring-agent definition, within FR-125: "unresolved" means neither remediated nor covered by a human-approved exception. |
 | DEC-055 | DQ-009 approved: the aggregate redirect count is kept for the life of the link; only per-event timestamps are purged after 30 days, so "N redirects gives count N" remains valid. | DQ-009 | FR-012, ASM-016 updated. |
 | DEC-056 | DQ-010 approved: the effects that can only be compensated, never rolled back, are audit records, recorded approvals, committed code, and anything sent externally. | DQ-010 | FR-119, ASM-014 updated. |
+| DEC-057 | DQ-011 approved as proposed: the issued token is bound to the identifier used at first contact (the IP-address hash), and rate limiting applies on both dimensions, per token and per IP-address hash. Rationale: token discarding cannot evade limits, and legitimate clients keep access to their link counts and idempotency scope. | DQ-011 | FR-022, FR-015, ASM-012, Client Identifier entity updated. Consequence disclosed as LIM-003 (clients sharing an IP-address hash share that limit); the FR-022 "unrelated clients" wording was narrowed to match. |
+| DEC-058 | Confirmed: version v1.9 stays (versions are stable and not reused); the abstract agent interface is a plan detail, the specification defining only the orchestration contract (what the orchestrator expects from agents). | Version question; agent-invocation assumption | ASM-017 added. No requirement text change. |
 
 ## Traceability Seed
 
@@ -711,4 +713,4 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 | FR-130 to FR-132 (audit, metrics, traceability) | US-5 | pending | pending | pending | pending |
 | FR-133 (gated AI-assisted implementation; DEC-001) | US-2, US-3, SCN-A, SCN-B | pending | pending | pending | pending |
 | CR-001 (optional `metadata` on creation; DEC-014; requirements to be produced by the SCN-B change workflow) | US-1, US-2, SCN-B | pending | pending | pending | pending |
-| Decisions DEC-001 to DEC-056 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
+| Decisions DEC-001 to DEC-058 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
