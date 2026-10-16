@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-16
 
-**Status**: Approved v1.2 (approved by the human candidate 2026-10-16, DEC-015, DEC-020, DEC-021, DEC-022). Contents: 55 functional requirements (FR-001 to FR-022, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-011 are all resolved; no ambiguity is open. CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
+**Status**: Approved v1.5 (approved by the human candidate 2026-10-16, DEC-015, DEC-020 to DEC-035). Contents: 55 functional requirements (FR-001 to FR-022, FR-101 to FR-133), 11 non-functional requirements, 15 validation targets. AMB-001 to AMB-013 are all resolved; no ambiguity is open. Two known limitations are recorded and accepted (LIM-001; LIM-002, which requires a plan mitigation). CR-001 details are assigned to the SCN-B change workflow (ASM-008). Changes require impact analysis and change approval (Constitution VI).
 
 **Input**: User description: "Build a production-grade prototype titled 'Agentic Software Engineering System: URL Shortener' that demonstrates a governed agentic execution system transforming software requirements into reviewable engineering outcomes across the complete SDLC, using a URL shortener as the demonstration domain."
 
@@ -30,6 +30,7 @@ This specification is implementation-independent. It deliberately chooses no fra
 | `FR-1nn` | Functional requirement, orchestration | `AMB-nnn` | Ambiguity (open) |
 | `PVT-nnn` | Validation target | `EXC-nnn` | Exclusion |
 | `DEC-nnn` | Recorded human decision | `FR-133` onward | Added by a recorded decision |
+| `LIM-nnn` | Known limitation | | |
 | `EV-xxx` | Required evidence type | `SC-nnn` | Success criterion |
 
 Each requirement lists `AC` (observable acceptance criteria), `NAC` (negative acceptance criteria: what MUST NOT happen), and `Evidence` (evidence types from the Evidence Catalogue). Tests, designs, tasks, and implementation will cite these IDs for bidirectional traceability.
@@ -176,7 +177,7 @@ Incomplete, unclear, or conflicting input.
 
 - **FR-003** [Confirmed] The service MUST reject invalid URLs (malformed, empty, longer than 2048 characters, missing host) with a clear, non-sensitive reason and store nothing (DEC-008).
   - AC: Each invalid class returns a rejection with a stable reason category; a URL of 2048 characters is accepted and one of 2049 is rejected.
-  - NAC: A rejected request MUST NOT create a mapping, consume a short code, or write analytics. A creation request whose expiry is more than 1 year ahead or in the past MUST be rejected with 400 Bad Request and reason code `expiry_out_of_range` (see FR-010, DEC-017).
+  - NAC: A rejected request MUST NOT create a mapping, consume a short code, or write analytics. A creation request supplying a relative expiry representation (for example `ttl_seconds` or `expires_in`) MUST be rejected with 400 Bad Request and reason `unsupported_expiry_representation`. A supplied `expires_at` that does not satisfy now < expires_at <= now + 365 days MUST be rejected with 400 Bad Request and reason `expiry_out_of_range` (see FR-010, DEC-017, DEC-024). A validation rejection MUST NOT create an idempotency record or consume the `Idempotency-Key` (DEC-033).
   - Evidence: EV-TEST
 - **FR-004** [Derived: constitution V] The service MUST accept only the `http` and `https` schemes and MUST reject all others, including schemes that execute content or access local resources (DEC-008).
   - AC: `http` and `https` URLs are accepted; all other schemes are rejected.
@@ -211,9 +212,9 @@ Incomplete, unclear, or conflicting input.
 
 **Expiration**
 
-- **FR-010** [Confirmed] A short link MUST support expiration: the default expiry is 30 days from creation, a consumer MAY optionally specify an expiry of up to 1 year, and after its expiry instant a link MUST NOT redirect and MUST return a distinct expired outcome (HTTP 410 Gone) (DEC-006, resolves AMB-001).
-  - AC: With no expiry supplied the link expires 30 days after creation; a supplied expiry up to 1 year is honored; before expiry the link redirects; at and after expiry it returns the distinct expired outcome (410), different from the not-found outcome of FR-009.
-  - NAC: A requested expiry more than 1 year after creation, or earlier than the current time, MUST be rejected with 400 Bad Request and reason code `expiry_out_of_range`, and MUST NOT create a mapping or consume a short code (DEC-017). An expired link MUST NOT redirect, MUST NOT count as a successful redirect in analytics, and MUST NOT have its code reassigned.
+- **FR-010** [Confirmed] A short link MUST support expiration. The creation contract accepts expiry only as an absolute RFC 3339 timestamp (`expires_at`) or by omission. When omitted, the default expiry is 30 days, resolved after any idempotency signature match, on first execution only, and persisted with the mapping. After its expiry instant a link MUST NOT redirect and MUST return a distinct expired outcome (HTTP 410 Gone) (DEC-006, DEC-023, DEC-024; resolves AMB-001).
+  - AC: With `expires_at` omitted the link expires 30 days after creation and that instant is persisted; a supplied `expires_at` satisfying now < expires_at <= now + 365 days is honored; before expiry the link redirects; at and after expiry it returns the distinct expired outcome (410), different from the not-found outcome of FR-009; the persisted default expiry does not change on replay (FR-016).
+  - NAC: A relative expiry representation (such as `ttl_seconds` or `expires_in`) MUST be rejected with 400 Bad Request and reason `unsupported_expiry_representation`. A supplied `expires_at` outside now < expires_at <= now + 365 days (including equal to now or in the past) MUST be rejected with 400 Bad Request and reason `expiry_out_of_range`. Neither rejection MAY create a mapping or consume a short code (DEC-017, DEC-024). An expired link MUST NOT redirect, MUST NOT count as a successful redirect in analytics, and MUST NOT have its code reassigned.
   - Evidence: EV-TEST
 - **FR-011** [Derived] The expiry decision MUST be consistent under concurrent resolution at the expiry boundary (a single, documented comparison rule).
   - AC: Resolutions on either side of the boundary yield deterministic outcomes.
@@ -237,24 +238,41 @@ Incomplete, unclear, or conflicting input.
 
 **Idempotency and duplicates**
 
-- **FR-015** [Confirmed] Creation MUST be idempotent when the client supplies an `Idempotency-Key` header: repeating a request with the same key MUST NOT create another mapping. The same URL submitted without the header MUST create a new, distinct short link (DEC-009, resolves AMB-004).
-  - AC: Repeated requests with the same `Idempotency-Key` and the same request signature yield one mapping; two requests for the same URL without the header yield two distinct short links. An `Idempotency-Key` is bound 1:1 to the exact request signature: (normalized URL + metadata hash + expiry), where the metadata hash applies once CR-001 exists and the expiry is compared as supplied by the client (an omitted expiry is itself a value, so two requests that both omit it match; the default-derived timestamp is not used, because it differs between retries) (DEC-016, DEC-021). A key is scoped per client (client identifier or anonymous session token), so the same key value used by two different clients is two independent keys. A key is retained for 24 hours; a request reusing a key after that window is treated as a new creation (DEC-016).
-  - NAC: A retry after a timeout carrying the same key MUST NOT create a second, different mapping. A request without the header MUST NOT be deduplicated against earlier requests. Reusing a key with any difference in URL, metadata, or expiry MUST be rejected with 409 Conflict (idempotency key reused with different request signature) and MUST NOT create or modify a mapping; a differing expiry alone MUST NOT be treated as a replay. A key MUST NOT collide across clients. A key older than 24 hours MUST NOT be honored as a replay.
+- **FR-015** [Confirmed] Creation MUST be idempotent when the client supplies an `Idempotency-Key` header: repeating a request with the same key and the same request signature MUST NOT create another mapping. The same URL submitted without the header MUST create a new, distinct short link (DEC-009, resolves AMB-004; refined by DEC-016, DEC-021, DEC-023, DEC-025, DEC-026, DEC-028).
+  - AC:
+    - The request signature is (FR-002 normalized URL + canonical metadata + canonical expiry). Computing it never reads the clock (DEC-021, DEC-023).
+    - Expiry component: an omitted expiry is the explicit sentinel ABSENT, so two requests that both omit it match. A supplied `expires_at` is compared as its canonical UTC instant, so timezone-offset equivalents match. The signature never contains a server-resolved default timestamp. Default expiry resolution (30 days) occurs after a signature match, on first execution only, and is persisted with the mapping (DEC-023).
+    - Metadata component (applies once CR-001 exists; before then every request carries the empty map): canonically encoded before hashing with keys sorted lexicographically, UTF-8, and no insignificant whitespace. Absent metadata and an empty metadata map both canonicalize to `{}` and yield the same signature. Keys are case-sensitive. Reordered pairs yield the same signature (DEC-025). Bounds are deferred to ASM-008.
+    - URL component: the FR-002 normalized URL, never the raw client input (DEC-025).
+    - An idempotency record has states IN_PROGRESS, COMPLETED, and FAILED (DEC-026). Same key and same signature while IN_PROGRESS returns 409 with reason `idempotency_request_in_progress` and creates no second mapping. Same key and same signature when COMPLETED replays the stored response, marked as a replay (FR-016). Same key and same signature when FAILED replays the stored failure response, marked as a replay, for the full retention window; a key is consumed by its outcome, including failure, and a client that wants to retry after a failure MUST use a new key (DEC-029). A FAILED idempotency record is created only for definitive failures (permanent errors). Validation rejections and transient failures do not create a record and do not consume the key, so the client can correct or retry the request with the same key (DEC-033). For this rule, content rejections under FR-003 to FR-005, the expiry errors of FR-010 (`expiry_out_of_range`, `unsupported_expiry_representation`), and rate-limited outcomes (FR-022) are validation-class rejections that occur before any idempotency record exists; a transient failure is a persistence timeout or similar failure that exhausts bounded retries (FR-019, FR-020), and its in-flight record is released rather than marked FAILED. An IN_PROGRESS record has a 60-second lease (FR-017, DEC-030). Same key and different signature returns 409 Conflict (idempotency key reused with different request signature).
+    - A key is scoped per client (client identifier or anonymous session token), so the same key value used by two clients is two independent keys. The 24-hour idempotency retention window starts when the record transitions to COMPLETED or FAILED, not when the record is created (DEC-016, DEC-031). Behavior after the retention window is documented in LIM-001.
+  - NAC:
+    - A retry after a timeout carrying the same key and signature MUST NOT create a second mapping. A request without the header MUST NOT be deduplicated against earlier requests.
+    - Reusing a key with any difference in URL, metadata, or expiry MUST be rejected with 409 Conflict and MUST NOT create or modify a mapping; a differing expiry alone MUST NOT be treated as a replay.
+    - Equivalent requests (timezone-offset-equivalent expiries, reordered metadata pairs, absent versus empty metadata) MUST NOT be rejected as conflicts.
+    - Signature computation MUST NOT depend on the current time and MUST NOT include a server-resolved default expiry.
+    - A relative expiry representation MUST NOT be accepted, so it can never form part of a signature (rejected per FR-003, DEC-024).
+    - An IN_PROGRESS duplicate MUST NOT create a second mapping and MUST NOT be reported as a replay.
+    - A key MUST NOT collide across clients.
+    - A FAILED idempotency record MUST NOT allow a fresh attempt with the same key within the 24-hour retention window (DEC-029).
+    - A validation rejection or a transient failure MUST NOT create a FAILED idempotency record and MUST NOT consume the key; a permanent (definitive) failure MUST create a FAILED record, consume the key, and have its failure response replayed for 24 hours (DEC-033).
+    - The retention window MUST NOT start before the record reaches COMPLETED or FAILED (DEC-031).
+    - A key whose record reached COMPLETED or FAILED more than 24 hours ago MUST NOT be honored as a replay. Post-retention reuse is a new request that MAY create a second mapping; this is a documented residual limitation (LIM-001), not a defect.
   - Evidence: EV-TEST
-- **FR-016** [Derived] An idempotent request replay (same `Idempotency-Key`) MUST be distinguishable from a first-time creation in the response.
-  - AC: A replay within the 24-hour retention window, by the same client with the same request signature (same URL, same metadata, same expiry), is identifiable as a replay and returns the original response. A reuse of the key with any difference in URL, metadata, or expiry returns 409 Conflict, which is distinguishable from both a replay and a new creation (DEC-016, DEC-021).
-  - NAC: A replay MUST NOT be reported as a new creation. A 409 Conflict MUST NOT be reported as a replay or as success.
+- **FR-016** [Derived] An idempotent request replay (same `Idempotency-Key`, same client, same signature, COMPLETED or FAILED record) MUST be distinguishable from a first-time creation in the response.
+  - AC: A replay within the 24-hour retention window returns the stored original response (success for COMPLETED, failure for FAILED) marked as a replay (DEC-029). A 409 for a different signature and a 409 `idempotency_request_in_progress` are each distinguishable from a replay, from a new creation, and from each other by reason code (DEC-016, DEC-021, DEC-026).
+  - NAC: A replay MUST NOT be reported as a new creation. A 409 MUST NOT be reported as a replay or as success. A replay MUST NOT re-run default expiry resolution or alter the stored mapping or its expiry.
   - Evidence: EV-TEST
 
 **Concurrency**
 
 - **FR-017** [Confirmed] The service MUST behave correctly under concurrent creation and resolution requests.
-  - AC: Concurrent creates yield unique codes; concurrent resolves return correct destinations; counts equal the number of successful redirects.
-  - NAC: Concurrency MUST NOT cause lost analytics updates, duplicate codes, or cross-linked destinations.
+  - AC: Concurrent creates yield unique codes; concurrent resolves return correct destinations; counts equal the number of successful redirects. Concurrent creations carrying the same `Idempotency-Key` and the same signature yield exactly one mapping: one request executes and the other receives 409 with reason `idempotency_request_in_progress`, or a replay of the COMPLETED response (DEC-026). An IN_PROGRESS idempotency record has a 60-second lease: if the server does not transition it to COMPLETED or FAILED within 60 seconds, the record is deleted and the key becomes available for a fresh attempt (DEC-030). Transient failures MUST NOT create an idempotency record that consumes the key, and the key remains available for retry (DEC-033).
+  - NAC: Concurrency MUST NOT cause lost analytics updates, duplicate codes, or cross-linked destinations, and MUST NOT let two in-flight requests with the same key and signature create two mappings within the lease. An IN_PROGRESS record MUST NOT block its key for longer than 60 seconds, and MUST NOT outlive its lease. If the first request succeeded but the server failed before responding, the client's retry after the lease receives a new short code; this is accepted because the specification does not require the same URL to receive the same short code (DEC-030, LIM-002). A request whose lease has expired, or whose record no longer exists or no longer matches that request, MUST NOT commit a result: the write MUST be aborted, and the record check and the result commit MUST be one atomic conditional operation (DEC-034).
   - Evidence: EV-TEST, EV-METRIC
 - **FR-018** [Derived] Requests that conflict on the same resource MUST resolve deterministically (one outcome, no partial state).
-  - AC: Conflicting requests produce a single consistent final state.
-  - NAC: No request MUST observe a half-created mapping.
+  - AC: Conflicting requests produce a single consistent final state. An idempotency record moves IN_PROGRESS to COMPLETED or FAILED exactly once, and a conflicting request observes either IN_PROGRESS or the final state, never a partial one (DEC-026).
+  - NAC: No request MUST observe a half-created mapping, nor an idempotency record whose state disagrees with the mapping.
   - Evidence: EV-TEST
 
 **Persistence failures**
@@ -265,7 +283,7 @@ Incomplete, unclear, or conflicting input.
   - Evidence: EV-TEST, EV-LOG
 - **FR-020** [Derived] Transient persistence failures MUST use bounded retries with defined backoff and timeout (targets in PVT-009 and PVT-010).
   - AC: A transient failure that clears within the bound results in success; one that does not results in a defined failure.
-  - NAC: Retries MUST NOT be unbounded or create duplicate mappings.
+  - NAC: Retries MUST NOT be unbounded or create duplicate mappings. A transient persistence failure that exhausts the retry bound MUST NOT create a FAILED idempotency record or consume the `Idempotency-Key` (DEC-033).
   - Evidence: EV-TEST, EV-METRIC
 
 **Operational health and abuse controls**
@@ -527,13 +545,15 @@ The prototype is API/CLI-based. This statement records the approver's scope; it 
 - **EXC-005** Link editing and deletion by consumers (see AMB-005).
 - **EXC-006** Distributed multi-region operation and disaster recovery beyond the recoverability targets.
 
-### Ambiguities (AMB-001 to AMB-011 all resolved; none open)
+### Ambiguities (AMB-001 to AMB-013 all resolved; none open)
 
 The resolutions are recorded in the Decision Record and incorporated into the affected requirements.
 
 - **AMB-001 Expiration policy.** **RESOLVED by DEC-006 (2026-10-16).** Affected: FR-010, FR-011.
 - **AMB-002 Analytics scope.** **RESOLVED by DEC-007 (2026-10-16).** Affected: FR-012 to FR-014.
 - **AMB-003 URL normalization and limits.** **RESOLVED by DEC-008 (2026-10-16).** Affected: FR-002 to FR-005.
+- **AMB-012 Idempotency record failure and interruption.** **RESOLVED by DEC-029, DEC-030, and DEC-031 (2026-10-16).** FAILED replays the failure for the retention window; an IN_PROGRESS record has a 60-second lease; retention starts at COMPLETED or FAILED. Affected: FR-015, FR-016, FR-017.
+- **AMB-013 Which outcomes create an idempotency record.** **RESOLVED by DEC-033 (2026-10-16).** Only definitive (permanent) failures create a FAILED record and consume the key; validation rejections and transient failures do not. Affected: FR-003, FR-015, FR-017, FR-020.
 - **AMB-004 Idempotency semantics.** **RESOLVED by DEC-009 (2026-10-16).** Affected: FR-015, FR-016. Residual details: AMB-011.
 - **AMB-005 Link management and access.** **RESOLVED by DEC-010 (2026-10-16).** Affected: FR-022, EXC-005, NFR-001.
 - **AMB-006 Redirect permanence.** **RESOLVED by DEC-011 (2026-10-16).** Affected: FR-008, FR-012.
@@ -541,17 +561,26 @@ The resolutions are recorded in the Decision Record and incorporated into the af
 - **AMB-008 Brownfield baseline.** **RESOLVED by DEC-002 (2026-10-16).** The output of SCN-A is the baseline for SCN-B; see DEC-002. Affected: SCN-B.
 - **AMB-009 Approver model.** **RESOLVED by DEC-012 (2026-10-16).** Affected: FR-114, FR-125, FR-128.
 - **AMB-010 Reference environment for performance claims.** **RESOLVED by DEC-013 (2026-10-16).** Affected: NFR-003, NFR-007.
-- **AMB-011 Idempotency edge cases.** **RESOLVED by DEC-016 and DEC-021 (2026-10-16).** The request signature is (URL + metadata hash + expiry); any difference under the same key is a 409 Conflict. Affected: FR-015, FR-016. The `metadata` bounds and logging treatment originally listed here are not baseline ambiguities: they belong to CR-001 and are recorded as an explicit assumption in ASM-008, to be specified by the SCN-B change workflow.
+- **AMB-011 Idempotency edge cases.** **RESOLVED by DEC-016, DEC-021, DEC-023, DEC-025, and DEC-026 (2026-10-16).** The request signature is (normalized URL + canonical metadata + canonical expiry), computed without reading the clock; any difference under the same key is a 409 Conflict; in-flight duplicates are rejected. Affected: FR-015, FR-016, FR-017, FR-018. The `metadata` bounds and logging treatment originally listed here are not baseline ambiguities: they belong to CR-001 and are recorded as an explicit assumption in ASM-008, to be specified by the SCN-B change workflow.
 
 ## Assumptions
 
 - **ASM-001** The URL shortener is a production-oriented prototype; production deployment is excluded (EXC-002).
 - **ASM-002** All PVT-nnn values are approved demonstration goals (DEC-003) and are not client requirements.
 - **ASM-003** A single human holds all approval authority (DEC-012); distinct logical roles (for example Reviewer, Release Owner) are recorded as string values in the audit log for demonstration purposes.
-- **ASM-004** AMB-001 to AMB-011 are resolved (DEC-006 to DEC-013, DEC-016); no ambiguity is open.
+- **ASM-004** AMB-001 to AMB-013 are resolved (DEC-006 to DEC-013, DEC-016, DEC-021 to DEC-026, DEC-029 to DEC-031, DEC-033). No ambiguity is open.
 - **ASM-007** The environment is a single-node local demonstration environment; all PVT results are labelled demonstration data, not production measurements (DEC-013).
 - **ASM-008** SCN-B demonstrates change request CR-001 (optional `metadata` field on creation), DEC-014. CR-001's requirements are specified through the SCN-B change workflow, not in this baseline specification. That workflow MUST define the `metadata` bounds (number of pairs, key and value length, permitted characters) and its logging treatment (FR-013 forbids sensitive data in logs); no value is decided here and implementation MUST NOT assume one before it is approved. DEC-016 already fixes that the metadata hash joins the idempotency request signature.
-- **ASM-009** (decided, DEC-021) The idempotency request signature is (normalized URL + metadata hash + expiry), the exact request fingerprint. Any difference in URL, metadata, or expiry under the same key is a 409 Conflict. This supersedes the earlier assumption that expiry was excluded. Expiry is compared as supplied by the client, with an omitted expiry counting as a value (see FR-015).
+- **ASM-009** (decided, DEC-021, DEC-023, DEC-025) The idempotency request signature is (FR-002 normalized URL + canonical metadata + canonical expiry), the exact request fingerprint, and its computation is clock-independent. Any difference under the same key is a 409 Conflict. This supersedes the earlier assumption that expiry was excluded. Canonicalization rules are in FR-015.
+- **ASM-010** (retired) Resolved by DEC-029 to DEC-031 and removed from the open items. ID not reused.
+- **ASM-011** (retired) Resolved by DEC-033 and removed from the open items. ID not reused.
+
+## Known Limitations
+
+Residual limitations are disclosed, not hidden (Constitution XI, item 8).
+
+- **LIM-001** (DEC-028) After the 24-hour idempotency retention window, a reused `Idempotency-Key` is treated as a new request and MAY create a second mapping. Rationale: retention is bounded to limit stored state, and this is a prototype. A client needing stronger guarantees must not reuse keys across that window. Verification: a test MUST demonstrate the documented behavior after the window; it is expected behavior, not a failure.
+- **LIM-002** (accepted by the human candidate, DEC-034) A request that is still running when its 60-second lease expires may be superseded by a retry: its IN_PROGRESS record is deleted and the key becomes available for a fresh attempt. The plan MUST implement a mitigation (for example a version field or a request ID check) to prevent a lease-expired request from committing a result after its record has been deleted: when a request writes its result it checks that the idempotency record still exists and matches its creation timestamp or request ID, and aborts the write if not (optimistic concurrency control). The mitigation mechanism is a plan decision; no technology is implied here. Verification: a test MUST demonstrate that a lease-expired request cannot commit.
 - **ASM-005** Agents may be AI-model-driven or deterministic; the specification constrains their behavior and evidence, not their construction.
 - **ASM-006** Reviewers verify from repository artifacts and recorded evidence, not from live access.
 
@@ -598,6 +627,19 @@ Human decisions recorded in this specification. Approver: the human candidate (A
 | DEC-020 | Specification status re-affirmed as **Approved**, now v1.1 because DEC-016 and DEC-017 changed approved requirement text (FR-003, FR-010, FR-015, FR-016). The functional requirement count is unchanged at 55; only acceptance and negative acceptance criteria were extended. | Specification approval | Status line updated. |
 | DEC-021 | Expiry MUST be included in the idempotency signature, which is now (URL + metadata hash + expiry). Same key with the same URL, metadata, and expiry is a replay (original response returned, marked as replay). Same key with any difference in URL, metadata, or expiry is rejected with 409 Conflict. Rationale given: defensive by default (as in mature idempotency systems), prevents a client reusing a key with a different expiry by mistake, keeps the key equal to an exact request fingerprint, and aligns with FR-015/FR-016. | ASM-009 (and refines DEC-016) | FR-015, FR-016, AMB-011, ASM-009 updated. Clarification added by the authoring agent for testability: expiry is compared as supplied, an omitted expiry counts as a value, and the default-derived timestamp is not compared. |
 | DEC-022 | ASM-008 approved as written: `metadata` bounds (pair count, key length, value length, logging behavior) are not needed until Scenario B and MUST be defined by the brownfield workflow before CR-001 implementation. | ASM-008 | No text change; ASM-008 remains deferred work for SCN-B. |
+| DEC-023 | DEC-021 confirmed and refined. An omitted expiry is the explicit sentinel ABSENT; two requests that both omit it match. A supplied absolute expiry is compared as its canonical UTC instant, not the raw client string, so timezone-offset equivalents match. The signature MUST NOT contain a server-resolved default timestamp. Governing rule: signature computation is clock-independent; default expiry resolution (30 days) occurs after a signature match, on first execution only, and is persisted with the mapping. | DEC-021 refinement; ASM-009 | FR-010, FR-015, FR-016 updated. Supersedes the "compared as supplied" wording added with DEC-021. |
+| DEC-024 | The API accepts `expires_at` only as an absolute RFC 3339 timestamp, or omission. Relative representations (`ttl_seconds`, `expires_in`, or similar) are not supported and are rejected with 400 and reason `unsupported_expiry_representation`, because resolving a relative TTL reads the clock and reintroduces retry instability. This defines the contract and removes no previously agreed feature. A supplied expiry is validated as now < expires_at <= now + 365 days; out of range gives 400 `expiry_out_of_range`. Validation is clock-dependent; the signature is not. | Relative-versus-absolute expiry question; refines DEC-017 | FR-003, FR-010, FR-015 updated. The earlier "up to 1 year" in DEC-006 is operationally 365 days. |
+| DEC-025 | Metadata is canonically encoded before hashing: keys sorted lexicographically, UTF-8, no insignificant whitespace. Absent metadata and an empty map are equivalent, both canonicalize to `{}`, and produce the same signature. Metadata keys are case-sensitive. The URL component of the signature is the FR-002 normalized URL, not the raw input. Bounds (pair count, key and value length, logging treatment) stay deferred to ASM-008; canonicalization rules are decided now. | Metadata canonicalization (new) | FR-015 updated. Before CR-001 every request carries the empty map, so baseline signatures are unaffected when CR-001 is introduced. |
+| DEC-026 | An idempotency record has states IN_PROGRESS, COMPLETED, and FAILED. Same key and same signature while IN_PROGRESS returns 409 with reason `idempotency_request_in_progress` and creates no second mapping. Same key and same signature when COMPLETED replays the stored response marked as a replay (FR-016). Same key and different signature returns 409 Conflict. Key scope stays per client; retention stays 24 hours. | Concurrent idempotent requests (new) | FR-015, FR-016, FR-017, FR-018 updated. The behavior for a FAILED record and for an IN_PROGRESS record orphaned by interruption was not specified; recorded as AMB-012 and ASM-010. |
+| DEC-027 | ASM-008 (deferred `metadata` bounds) confirmed again as deferred work for Scenario B; implementation MUST NOT assume values before that workflow defines them. | ASM-008 | No text change. |
+| DEC-028 | Record explicitly as a known limitation: after the 24-hour retention window a reused key is treated as a new request and MAY create a second mapping, accepted given bounded retention and prototype scope. | Residual limitation | New section Known Limitations (LIM-001). FR-015 cross-references it. |
+| DEC-029 | FAILED record behavior: same key and same signature when the record is FAILED replays the failure response for the full 24-hour retention window. A key is consumed by its outcome, including failure; a client that wants to retry after a failure MUST use a new key. | AMB-012(a) | FR-015 (AC and NAC), FR-016 updated. |
+| DEC-030 | Orphaned IN_PROGRESS record: an IN_PROGRESS record has a 60-second lease. If the server does not transition it to COMPLETED or FAILED within 60 seconds, the record is deleted and the key becomes available for a fresh attempt. Accepted trade-off: if the first request succeeded but the server failed before responding, the retry after the lease gets a new short code, acceptable because the spec does not require the same URL to receive the same short code. | AMB-012(b) | FR-017 updated. The authoring agent identified a further consequence (a slow, not crashed, first request can outlive its lease), recorded as LIM-002 pending human acceptance. |
+| DEC-031 | The 24-hour retention window starts when the record transitions to COMPLETED or FAILED, not when it is created, because retention exists for replay protection and an in-progress request has nothing to replay. | AMB-012(c) | FR-015 updated. |
+| DEC-032 | AMB-012 and ASM-010 are resolved by DEC-029 to DEC-031 and removed from the open items. | AMB-012, ASM-010 | AMB-012 marked resolved; ASM-010 retired (ID not reused). Two follow-on items were raised by the authoring agent while applying these decisions: AMB-013 (open, ASM-011) and LIM-002 (pending acceptance). |
+| DEC-033 | Which outcomes create an idempotency record: validation rejections (invalid URL, `expiry_out_of_range`, `unsupported_expiry_representation`) do not create a FAILED record and do not consume the key, so the client can fix the request and retry with the same key. Transient failures (a persistence timeout after bounded retries) do not create a FAILED record and do not consume the key. Permanent failures (for example a blacklisted URL, an unresolvable internal error, a policy violation) create a FAILED record, consume the key, and replay the failure for 24 hours. | AMB-013, ASM-011 | FR-015, FR-017 updated. Authoring-agent clarifications for testability, pending confirmation: (1) FR-003 to FR-005 content rejections and rate-limited outcomes (FR-022) are treated as validation-class; (2) a transient failure releases its in-flight record rather than leaving it; (3) FR-003 and FR-020 carry cross-references. The specification defines no URL blacklist capability, so "blacklisted URL" is read as an example of a permanent failure, not as a new requirement. |
+| DEC-034 | LIM-002 accepted. The plan MUST implement a mitigation (for example a version field or request ID check) so a lease-expired request cannot commit a result after its record was deleted: on writing its result it checks that the record still exists and matches its creation timestamp or request ID, and aborts the write if not. | LIM-002 | LIM-002 updated; FR-017 NAC added. Authoring-agent tightening: the check and the commit must be one atomic conditional operation, otherwise a check-then-write can still race. The response given to the aborted request is a plan detail and is not decided here. |
+| DEC-035 | AMB-013 and ASM-011 are resolved by DEC-033 and removed from the open items. | AMB-013, ASM-011 | AMB-013 marked resolved; ASM-011 retired (ID not reused). No ambiguity remains open. |
 
 ## Traceability Seed
 
@@ -619,4 +661,4 @@ Downstream columns are intentionally empty; they are populated by later lifecycl
 | FR-130 to FR-132 (audit, metrics, traceability) | US-5 | pending | pending | pending | pending |
 | FR-133 (gated AI-assisted implementation; DEC-001) | US-2, US-3, SCN-A, SCN-B | pending | pending | pending | pending |
 | CR-001 (optional `metadata` on creation; DEC-014; requirements to be produced by the SCN-B change workflow) | US-1, US-2, SCN-B | pending | pending | pending | pending |
-| Decisions DEC-001 to DEC-015 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
+| Decisions DEC-001 to DEC-035 | all | recorded in Decision Record | n/a | n/a | EV-APPROVAL: decision text in this session; no timestamp beyond date recorded |
