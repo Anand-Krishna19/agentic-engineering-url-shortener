@@ -1,21 +1,3 @@
-<!--
-Sync Impact Report (temporary; remove before commit of ratified version)
-- Version change: template (unversioned) -> 1.0.0
-- Modified principles: none renamed (initial adoption)
-- Added principles: I-XI (Specification Before Implementation; Explicit Agentic
-  Orchestration; Human Governance; Test-Driven Engineering; Security and Privacy by
-  Design; Compliance and Change-Control Policy Enforcement; Architecture and
-  Maintainability; Reliability and Recovery; Observability and Auditability;
-  Traceability and Repository Integrity; Evidence-Based Completion)
-- Added sections: Governance Requirements (drafted from the requested topic list;
-  concrete mechanics are PROPOSALS pending human approval)
-- Removed sections: template SECTION_2 / SECTION_3 placeholders (replaced by
-  Governance Requirements)
-- Deferred items:
-  - TODO(RATIFICATION_DATE): human candidate has not yet approved this constitution.
-  - Which principles are non-waivable (see "Non-Waivable Principles") is a proposal
-    requiring human confirmation.
--->
 # Agentic Software Engineering System: URL Shortener Constitution
 
 This constitution governs a production-grade engineering assessment submission. The URL
@@ -177,7 +159,7 @@ A feature or task is complete only when all of the following hold:
 
 ### Non-Waivable Principles
 
-The following MUST NOT be waived by any exception (proposed; pending human confirmation):
+The following MUST NOT be waived by any exception:
 
 - Principle III (Human Governance), including no approval by silence.
 - Principle X prohibition on fabricating approval, test, execution, or operational evidence.
@@ -216,4 +198,4 @@ All other principles MAY be waived only through an approved exception.
 - Release readiness MUST be declared only by the human candidate, based on reviewable
   evidence.
 
-**Version**: 1.0.0 | **Ratified**: TODO(RATIFICATION_DATE): pending human approval | **Last Amended**: 2026-10-16
+**Version**: 1.0.0 | **Ratified**: 2026-10-16 | **Last Amended**: 2026-10-16
