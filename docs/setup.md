@@ -19,6 +19,7 @@ Requires Node.js 20 or later (ADR-001).
 | T004 | Done | `tests/unit/server/health.test.ts` (red: module `src/server.ts` missing, whole file failed; then 16 passed). `/healthz`, `/readyz`, `/metrics` per contract; Ajv strict settings (ADR-002); JSON logs with server-minted `request_id`, no peer address. `/metrics` is a comment-only stub (no collectors). |
 | T005 | Done | `tests/unit/types/types.test.ts` (red: modules missing; then 15 passed). Drift tests compare every exported vocabulary with `workflow-state.schema.json`, `audit-event.schema.json` and the T003 CHECK constraints. Mutation check: adding a bogus status failed 3 tests. IN_PROGRESS/COMPLETED/FAILED are idempotency states and are defined with T008, not here (tasks.md correction 2026-10-18). |
 | T006 | Done | `tests/unit/url/validator.test.ts` (red: module missing; then 125 passed). Mutation checks: removing the userinfo rule failed 6 tests; removing the 100.64.0.0/10 range failed 2. Full suite 181 passed; lint and typecheck clean. |
+| T007 | Done | `tests/unit/code/generator.test.ts` (13) and `tests/persistence/code/repository.test.ts` (8, real postgres:16.2-alpine as shortener_app). Red: modules missing. Mutation checks: allowing a 4th attempt failed 3 tests; removing ON CONFLICT failed 6. Full suite 202 passed; lint and typecheck clean. |
 
 ## Local dependencies (T002)
 
@@ -41,3 +42,9 @@ Files: `src/server.ts` (`buildServer`, `start`), `src/health.ts`, `src/logger.ts
 `validateUrl(raw, { publicBaseUrl })` in `src/shortener/domain/url/validator.ts` returns `{ ok: true, normalized }` or `{ ok: false, reason }` with reason `url_too_long`, `invalid_url`, `unsupported_scheme` or `forbidden_destination`, checked in the ADR-027 order. It is synchronous and never resolves DNS (residual risk R-18, DNS rebinding, is not detected). The stored form is built from the raw input with exactly three changes (lowercase scheme and host, default port removed, fragment removed); the URL class is used only to validate and to canonicalize IP forms for the destination check.
 
 Interpretation notes: `scheme:` URLs without `//` (for example `https:example.com`) are `invalid_url`; a `%` in the host is `invalid_url`; non-ASCII characters in the path or query are stored as supplied (no re-encoding, per data-model.md 4.1), which T009 must handle when it emits the `Location` header.
+
+## Short codes (T007)
+
+`src/shortener/domain/code/generator.ts`: `generateShortCode` (7 characters, base62, `node:crypto` `randomInt`), `isShortCode`, and `insertWithUniqueCode`, which retries a collision with a fresh code up to 3 attempts and then throws `CodeGenerationExhaustedError` (`transient: true`). The creation handler (T008) must map that error to HTTP 503 with reason `persistence_unavailable` and must not write a FAILED idempotency record (PA-008, DEC-033).
+
+`src/shortener/adapters/persistence/short-link-repository.ts` (not in T007 Files column; needed by its persistence test) inserts with `ON CONFLICT (short_code) DO NOTHING`, so a collision neither throws nor aborts an enclosing transaction. The unique index and the binary collation come from T003. Persistence tests need Docker; they start a throwaway container.
