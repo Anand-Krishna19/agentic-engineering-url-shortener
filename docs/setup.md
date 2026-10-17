@@ -18,6 +18,7 @@ Requires Node.js 20 or later (ADR-001).
 | T003 | Done | `tests/persistence/schema/schema.test.ts` (red: hook failed, SQL files missing, 11 skipped; then 11 passed against a real postgres:16.2-alpine container). Mutation check: removing the audit REVOKE made 2 tests fail. Compose test extended (red 1 failed, then passed). |
 | T004 | Done | `tests/unit/server/health.test.ts` (red: module `src/server.ts` missing, whole file failed; then 16 passed). `/healthz`, `/readyz`, `/metrics` per contract; Ajv strict settings (ADR-002); JSON logs with server-minted `request_id`, no peer address. `/metrics` is a comment-only stub (no collectors). |
 | T005 | Done | `tests/unit/types/types.test.ts` (red: modules missing; then 15 passed). Drift tests compare every exported vocabulary with `workflow-state.schema.json`, `audit-event.schema.json` and the T003 CHECK constraints. Mutation check: adding a bogus status failed 3 tests. IN_PROGRESS/COMPLETED/FAILED are idempotency states and are defined with T008, not here (tasks.md correction 2026-10-18). |
+| T006 | Done | `tests/unit/url/validator.test.ts` (red: module missing; then 125 passed). Mutation checks: removing the userinfo rule failed 6 tests; removing the 100.64.0.0/10 range failed 2. Full suite 181 passed; lint and typecheck clean. |
 
 ## Local dependencies (T002)
 
@@ -34,3 +35,9 @@ Image tags are the human-confirmed examples from DEC-098. The authoring note rec
 ## Server skeleton (T004)
 
 Files: `src/server.ts` (`buildServer`, `start`), `src/health.ts`, `src/logger.ts` (paths per approved tasks.md). `start()` binds to 127.0.0.1:8080 by default. There is no npm start script yet. `/readyz` reports ready with an empty checks map until persistence checks are registered by later tasks. The client-supplied `X-Request-Id` header is ignored; the server mints the correlation ID.
+
+## URL validation (T006)
+
+`validateUrl(raw, { publicBaseUrl })` in `src/shortener/domain/url/validator.ts` returns `{ ok: true, normalized }` or `{ ok: false, reason }` with reason `url_too_long`, `invalid_url`, `unsupported_scheme` or `forbidden_destination`, checked in the ADR-027 order. It is synchronous and never resolves DNS (residual risk R-18, DNS rebinding, is not detected). The stored form is built from the raw input with exactly three changes (lowercase scheme and host, default port removed, fragment removed); the URL class is used only to validate and to canonicalize IP forms for the destination check.
+
+Interpretation notes: `scheme:` URLs without `//` (for example `https:example.com`) are `invalid_url`; a `%` in the host is `invalid_url`; non-ASCII characters in the path or query are stored as supplied (no re-encoding, per data-model.md 4.1), which T009 must handle when it emits the `Location` header.
