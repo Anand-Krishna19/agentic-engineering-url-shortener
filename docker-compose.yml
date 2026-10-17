@@ -1,0 +1,39 @@
+# T002: local dependencies only (ADR-023). Node processes run on the host.
+# Images are the human-confirmed tags from DEC-098; ports are loopback only.
+services:
+  postgres:
+    image: postgres:16.2-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_DB: urlshortener
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD (see .env.example)}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d urlshortener"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    # Ephemeral cache only (ADR-015): no RDB snapshots, no AOF.
+    command:
+      - redis-server
+      - --save
+      - ""
+      - "--appendonly"
+      - "no"
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD (see .env.example)}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD (see .env.example)}
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
