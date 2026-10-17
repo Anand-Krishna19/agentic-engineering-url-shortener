@@ -40,6 +40,7 @@ const link = (code: string, url = `https://example.com/${code}`, expires = new D
   short_code: code,
   normalized_url: url,
   creator_client_id: 'c1',
+  created_at: new Date(),
   expires_at: expires,
   expiry_source: 'DEFAULT',
 });

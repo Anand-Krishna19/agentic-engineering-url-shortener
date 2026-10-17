@@ -1,12 +1,15 @@
 import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerOperationsRoutes, type ReadinessChecks } from './health.js';
+import { registerCreateLink, type CreateLinkRouteDeps } from './shortener/adapters/api/create-link.js';
 import { generateRequestId, loggerOptions, REQUEST_ID_LOG_LABEL, type LogStream } from './logger.js';
 
 export interface BuildServerOptions {
   logLevel?: string;
   logStream?: LogStream;
   readinessChecks?: ReadinessChecks;
+  /** When set, registers POST /v1/links (T008). */
+  createLink?: CreateLinkRouteDeps;
 }
 
 export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
@@ -19,6 +22,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
     ajv: { customOptions: { removeAdditional: false, coerceTypes: false, useDefaults: false } },
   });
   registerOperationsRoutes(app, opts.readinessChecks ?? {});
+  if (opts.createLink) registerCreateLink(app, opts.createLink);
   return app;
 }
 
