@@ -20,7 +20,7 @@ Requires Node.js 20 or later (ADR-001).
 | T005 | Done | `tests/unit/types/types.test.ts` (red: modules missing; then 15 passed). Drift tests compare every exported vocabulary with `workflow-state.schema.json`, `audit-event.schema.json` and the T003 CHECK constraints. Mutation check: adding a bogus status failed 3 tests. IN_PROGRESS/COMPLETED/FAILED are idempotency states and are defined with T008, not here (tasks.md correction 2026-10-18). |
 | T006 | Done | `tests/unit/url/validator.test.ts` (red: module missing; then 125 passed). Mutation checks: removing the userinfo rule failed 6 tests; removing the 100.64.0.0/10 range failed 2. Full suite 181 passed; lint and typecheck clean. |
 | T007 | Done | `tests/unit/code/generator.test.ts` (13) and `tests/persistence/code/repository.test.ts` (8, real postgres:16.2-alpine as shortener_app). Red: modules missing. Mutation checks: allowing a 4th attempt failed 3 tests; removing ON CONFLICT failed 6. Full suite 202 passed; lint and typecheck clean. |
-| T010 | Done | `tests/unit/clock` (8), `tests/unit/expiry` (49), `tests/unit/analytics` (22) tests; red: `clock.ts` missing, all three files failed. Mutation checks: lower-bound `>` to `>=` failed 2; `now >= expires_at` to `>` failed 3; counting HEAD failed 5. Full suite 289 passed; lint and typecheck clean. |
+| T010 | Done | `tests/unit/clock` (8), `tests/unit/expiry` (57), `tests/unit/analytics` (22) tests; red: `clock.ts` missing, all three files failed. Mutation checks: lower-bound `>` to `>=` failed 2; `now >= expires_at` to `>` failed 3; counting HEAD failed 5. Full suite 289 passed; lint and typecheck clean. |
 
 ## Local dependencies (T002)
 
