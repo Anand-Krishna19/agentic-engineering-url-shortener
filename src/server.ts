@@ -2,6 +2,8 @@ import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerOperationsRoutes, type ReadinessChecks } from './health.js';
 import { registerCreateLink, type CreateLinkRouteDeps } from './shortener/adapters/api/create-link.js';
+import { registerResolveLink } from './shortener/adapters/api/resolve-link.js';
+import type { ResolveDeps } from './shortener/app/resolve-link/service.js';
 import { generateRequestId, loggerOptions, REQUEST_ID_LOG_LABEL, type LogStream } from './logger.js';
 
 export interface BuildServerOptions {
@@ -10,12 +12,16 @@ export interface BuildServerOptions {
   readinessChecks?: ReadinessChecks;
   /** When set, registers POST /v1/links (T008). */
   createLink?: CreateLinkRouteDeps;
+  /** When set, registers GET /{short_code} (T009). */
+  resolveLink?: ResolveDeps;
 }
 
 export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: loggerOptions(opts.logLevel ?? 'info', opts.logStream),
     requestIdHeader: false,
+    // Above Node's 16 KB header limit, so an over-long code reaches the handler and gets the same 404 as any other (FR-009).
+    maxParamLength: 16_384,
     requestIdLogLabel: REQUEST_ID_LOG_LABEL,
     genReqId: generateRequestId,
     // ADR-002: strict, contract-first validation. Fastify's permissive defaults are turned off.
@@ -23,6 +29,7 @@ export function buildServer(opts: BuildServerOptions = {}): FastifyInstance {
   });
   registerOperationsRoutes(app, opts.readinessChecks ?? {});
   if (opts.createLink) registerCreateLink(app, opts.createLink);
+  if (opts.resolveLink) registerResolveLink(app, opts.resolveLink);
   return app;
 }
 

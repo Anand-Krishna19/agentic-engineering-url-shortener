@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { handleCreateLink } from '../../app/create-link/handler.js';
 import { problem, type CreateLinkDeps, type HttpResult } from '../../app/create-link/service.js';
 
@@ -13,8 +13,10 @@ export interface CreateLinkRouteDeps extends CreateLinkDeps {
   resolveClient(req: FastifyRequest): Promise<string>;
 }
 
-function send(reply: import('fastify').FastifyReply, result: HttpResult) {
-  reply.code(result.status).header('content-type', result.status >= 400 ? 'application/problem+json' : 'application/json; charset=utf-8');
+export function send(reply: FastifyReply, result: HttpResult) {
+  reply.code(result.status);
+  if (result.status !== 302) reply.header("content-type", result.status >= 400 ? "application/problem+json" : "application/json; charset=utf-8");
+  if (result.location !== undefined) reply.header("Location", result.location).header("Cache-Control", "no-store");
   if (result.replayed) reply.header('Idempotency-Replayed', 'true');
   if (result.retryAfterSeconds !== undefined) reply.header('Retry-After', String(result.retryAfterSeconds));
   return reply.send(result.body);

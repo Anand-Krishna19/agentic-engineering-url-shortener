@@ -9,7 +9,7 @@ export type Reason =
   | 'invalid_url' | 'url_too_long' | 'unsupported_scheme' | 'forbidden_destination' | 'malformed_request'
   | 'invalid_idempotency_key' | 'expiry_out_of_range' | 'unsupported_expiry_representation'
   | 'idempotency_key_conflict' | 'idempotency_request_in_progress' | 'persistence_unavailable'
-  | 'request_superseded' | 'internal_error';
+  | 'request_superseded' | 'internal_error' | 'not_found' | 'link_expired';
 
 const TITLES: Record<Reason, string> = {
   invalid_url: 'Invalid URL',
@@ -25,6 +25,8 @@ const TITLES: Record<Reason, string> = {
   persistence_unavailable: 'Persistence unavailable',
   request_superseded: 'Request superseded',
   internal_error: 'Internal error',
+  not_found: 'Not found',
+  link_expired: 'Link expired',
 };
 
 /** Transport-neutral outcome; the Fastify adapter turns it into a response. `body` is JSON text. */
@@ -32,6 +34,8 @@ export interface HttpResult {
   status: number;
   body: string;
   replayed?: boolean;
+  /** Redirect target for 302 results (the adapter also sets Cache-Control: no-store). */
+  location?: string;
   retryAfterSeconds?: number;
 }
 
