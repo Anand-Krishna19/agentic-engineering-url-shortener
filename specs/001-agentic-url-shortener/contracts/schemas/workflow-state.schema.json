@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:workflow-state:1.0.0",
+  "title": "Workflow state (inspection view)",
+  "description": "Read-only inspection of a run (FR-102): current state, stage statuses, blocked paths, pending approvals, artifacts, and decision lineage. Inspection never changes state.",
+  "type": "object",
+  "required": ["run_id", "profile", "scenario_tag", "agent_mode", "status", "plan_version", "policy_catalogue_version", "nodes", "gates", "created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "run_id": { "type": "string" },
+    "profile": { "type": "string", "pattern": "^[a-z0-9-]+/[0-9]+$" },
+    "scenario_tag": { "type": "string", "enum": ["SCN-A", "SCN-B", "SCN-C", "TEST", "NONE"] },
+    "agent_mode": { "type": "string", "enum": ["LIVE_EXTERNAL", "SCRIPTED", "MIXED"] },
+    "status": { "type": "string", "enum": ["CREATED", "RUNNING", "SAFE_STOPPED", "COMPLETED", "CANCELLED"] },
+    "release_outcome": { "type": ["string", "null"], "enum": ["READY", "NOT_READY", null] },
+    "terminal_reason": { "type": ["string", "null"] },
+    "plan_version": { "type": "integer", "minimum": 1 },
+    "policy_catalogue_version": { "type": "string" },
+    "parent_run_id": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "terminal_at": { "type": ["string", "null"], "format": "date-time" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node_key", "state", "attempt_count"],
+        "additionalProperties": false,
+        "properties": {
+          "node_key": { "type": "string", "pattern": "^N[0-9]{2}_[A-Z_]+$" },
+          "state": {
+            "type": "string",
+            "enum": ["PENDING", "READY", "RUNNING", "AWAITING_WORK", "RETRY_WAIT", "AWAITING_APPROVAL", "SUSPENDED", "SUCCEEDED", "FAILED_PERMANENT", "FALLBACK_ACTIVE", "COMPENSATING", "COMPENSATED", "STALE", "SKIPPED", "CANCELLED"]
+          },
+          "branch": { "type": "string" },
+          "attempt_count": { "type": "integer", "minimum": 0 },
+          "blocked_by": { "type": "array", "items": { "type": "string" } },
+          "suspended_reason": { "type": "string" },
+          "stale_reason": { "type": "string" },
+          "skip_reason": { "type": "string" }
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate_id", "gate_key", "state"],
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": { "type": "string" },
+          "gate_key": { "type": "string", "enum": ["G-AMB", "G-ARCH", "G-CODE", "G-SEC", "G-DESTR", "G-EXC", "G-RISK", "G-REL", "G-FINAL", "G-CHG"] },
+          "state": { "type": "string", "enum": ["OPEN", "APPROVED", "REJECTED", "ESCALATED", "TIMED_OUT", "SAFE_STOPPED", "SUPERSEDED"] },
+          "deadline_at": { "type": ["string", "null"], "format": "date-time" },
+          "clock_kind": { "type": "string", "enum": ["WALL", "SIMULATED"] }
+        }
+      }
+    },
+    "blocked_paths": { "type": "array", "items": { "type": "string" } },
+    "pending_approvals": { "type": "array", "items": { "type": "string" }, "description": "Gate ids awaiting a human decision." },
+    "artifact_versions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version_id", "kind", "version_no", "status", "content_hash"],
+        "additionalProperties": false,
+        "properties": {
+          "version_id": { "type": "string" },
+          "kind": { "type": "string" },
+          "version_no": { "type": "integer", "minimum": 1 },
+          "status": { "type": "string", "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "APPROVED", "STALE", "SUPERSEDED"] },
+          "content_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "decision_ids": { "type": "array", "items": { "type": "string" } }
+  }
+}

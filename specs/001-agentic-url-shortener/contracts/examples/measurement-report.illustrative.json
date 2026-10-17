@@ -1,0 +1,40 @@
+{
+  "report_id": "mr-illustrative-1",
+  "generated_at": "2026-10-16T12:00:00Z",
+  "population": {
+    "run_ids": ["0197a3c2-5a00-7c00-9f00-000000000001"],
+    "agent_modes": ["SCRIPTED"],
+    "clock_kinds": ["WALL"],
+    "inclusion_rule": "all terminal runs with scenario_tag TEST",
+    "exclusions": ["human approval waiting time", "clarification waiting time", "planned suspension"]
+  },
+  "data_nature": "DEMONSTRATION",
+  "workflow_success_rate": { "terminal_runs": 3, "completed_runs": 2, "safe_stopped_runs": 1, "cancelled_runs": 0, "rate": 0.6667 },
+  "failure_rate": { "attempts": 40, "failed_attempts": 3, "rate": 0.075 },
+  "retry_frequency": { "node_executions": 37, "retries": 2, "rate": 0.054 },
+  "compensation_frequency": { "effects": 30, "rollbacks": 1, "compensations": 1 },
+  "end_to_end_latency": {
+    "runs": 3, "unit": "ms",
+    "inclusive_of_human_wait": { "count": 3, "min": 900000, "p50": 1200000, "p95": 2400000, "max": 2400000 },
+    "exclusive_of_human_wait": { "count": 3, "min": 8000, "p50": 9000, "p95": 15000, "max": 15000 }
+  },
+  "mttr": {
+    "recovered_failure_events": 2,
+    "total_recovery_duration_ms": 4000,
+    "mttr_ms": 2000,
+    "unrecovered_failure_count": 1,
+    "individual_recoveries": [
+      { "failure_id": "fe-4", "detected_at": "2026-10-16T10:20:00Z", "recovery_started_at": "2026-10-16T10:20:01Z", "recovery_completed_at": "2026-10-16T10:20:03Z", "recovery_duration_ms": 3000, "recovery_mechanism": "RETRY", "status": "RECOVERED", "synthetic": true, "clock_kind": "WALL" },
+      { "failure_id": "fe-5", "detected_at": "2026-10-16T10:25:00Z", "recovery_started_at": "2026-10-16T10:25:00Z", "recovery_completed_at": "2026-10-16T10:25:01Z", "recovery_duration_ms": 1000, "recovery_mechanism": "RESUME", "status": "RECOVERED", "synthetic": true, "clock_kind": "WALL" }
+    ],
+    "unrecovered_events": ["fe-6"],
+    "measurement_population": "2 recovered synthetic failure events in 3 SCRIPTED test runs on one local machine",
+    "exclusions": ["unrecovered failures (reported separately)", "human wait time"],
+    "formula": "MTTR = total recovery duration across recovered failure events / number of recovered failure events"
+  },
+  "limitations": [
+    "ILLUSTRATIVE EXAMPLE ONLY. These numbers are invented to show the report shape and are not execution evidence.",
+    "Demonstration data from a single local machine is not a production statistic.",
+    "Synthetic injected faults do not represent organic failure behavior."
+  ]
+}

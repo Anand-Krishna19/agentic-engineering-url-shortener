@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:audit-event:1.0.0",
+  "title": "Audit event",
+  "description": "One append-only, hash-chained audit record (FR-130, Constitution IX). Required fields: actor type, action, timestamp, affected artifact or state, result, reason.",
+  "type": "object",
+  "required": [
+    "event_id", "run_id", "seq", "occurred_at", "clock_kind", "actor_type", "action",
+    "subject_type", "subject_id", "result", "reason", "correlation_id", "prev_hash", "hash"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "seq": { "type": "integer", "minimum": 1, "description": "Gapless per run." },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "clock_kind": { "type": "string", "enum": ["WALL", "SIMULATED"] },
+    "actor_type": { "type": "string", "enum": ["HUMAN", "AGENT", "SYSTEM"] },
+    "actor_id": { "type": "string" },
+    "role_string": { "type": "string", "description": "For example Reviewer or Release Owner (DEC-012)." },
+    "credential_id": { "type": "string", "description": "Identifier of the credential used, never the secret (DEC-037)." },
+    "action": {
+      "type": "string",
+      "enum": [
+        "RUN_CREATED", "REQUIREMENT_INGESTED", "PLAN_VERSION_CREATED", "NODE_STATE_CHANGED",
+        "ATTEMPT_STARTED", "ATTEMPT_FINISHED", "RETRY_SCHEDULED", "FALLBACK_APPLIED",
+        "COMPENSATION_STARTED", "COMPENSATION_FINISHED", "SAFE_STOP_ENTERED", "RUN_RESUMED",
+        "REPLAN_PROPOSED", "REPLAN_APPLIED", "APPROVAL_REQUESTED", "APPROVAL_RECORDED",
+        "APPROVAL_DENIED", "APPROVAL_TIMEOUT", "APPROVAL_ESCALATED", "LATE_RESPONSE_REJECTED",
+        "AMBIGUITY_DETECTED", "CLARIFICATION_REQUESTED", "CLARIFICATION_ANSWERED",
+        "DECISION_RECORDED", "ASSUMPTION_RECORDED", "ARTIFACT_VERSION_CREATED", "ARTIFACT_MARKED_STALE",
+        "POLICY_EVALUATED", "EXCEPTION_REQUESTED", "EXCEPTION_DECIDED", "EXCEPTION_EXPIRED",
+        "CHANGE_REQUESTED", "CHANGE_DECIDED", "WORK_ITEM_OFFERED", "WORK_ITEM_SUBMITTED",
+        "AGENT_ACTION_DENIED", "FAILURE_DETECTED", "RECOVERY_STARTED", "RECOVERY_COMPLETED",
+        "RELEASE_READINESS_DETERMINED", "RUN_TERMINATED", "AUDIT_CHAIN_VERIFIED"
+      ]
+    },
+    "subject_type": { "type": "string", "enum": ["RUN", "NODE", "ATTEMPT", "ARTIFACT", "GATE", "APPROVAL", "AMBIGUITY", "CLARIFICATION", "DECISION", "POLICY", "EXCEPTION", "CHANGE", "WORK_ITEM", "FAILURE", "AUDIT"] },
+    "subject_id": { "type": "string", "minLength": 1 },
+    "from_state": { "type": "string" },
+    "to_state": { "type": "string" },
+    "result": { "type": "string", "enum": ["SUCCESS", "FAILURE", "DENIED", "REJECTED", "NOOP"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "policy_version": { "type": "string" },
+    "correlation_id": { "type": "string", "minLength": 1 },
+    "causation_id": { "type": "string" },
+    "data": { "type": "object", "description": "Structured details. Never holds secrets or credentials." },
+    "prev_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "All zeros for the first event of a run." },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 over prev_hash and the canonical JSON of this event without the hash field." }
+  }
+}

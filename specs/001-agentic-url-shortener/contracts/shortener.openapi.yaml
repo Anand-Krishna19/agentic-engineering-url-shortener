@@ -1,0 +1,428 @@
+openapi: 3.1.0
+info:
+  title: URL Shortener (Application Plane)
+  version: 1.0.0
+  summary: Baseline contract for the URL shortener service.
+  description: |
+    Contract owner: application plane. Source of truth for the shortener API.
+    Versioning: semantic. The `/v1` path segment is the major version. See contracts/README.md for
+    compatibility and change-control rules.
+
+    Traceability: FR-001 to FR-023 of specs/001-agentic-sdlc-url-shortener/spec.md (v1.10).
+
+    Error bodies use RFC 9457 problem details (`application/problem+json`) with a stable machine-readable
+    `reason`. A redirect, not-found, or expired response from the redirect endpoint also uses these.
+  license:
+    name: Proprietary (assessment prototype)
+    identifier: LicenseRef-Assessment
+servers:
+  - url: http://localhost:8080
+    description: Local single-node demonstration environment (ASM-007)
+tags:
+  - name: Links
+  - name: Redirect
+  - name: Operations
+paths:
+  /v1/links:
+    post:
+      tags: [Links]
+      operationId: createLink
+      summary: Create a short link
+      description: |
+        Validation-class rejections (400, 429) occur before any idempotency record exists and never consume an
+        `Idempotency-Key` (DEC-033, DEC-036). Replays return the stored response and status with the header
+        `Idempotency-Replayed: true`. Relative expiry representations are not supported (DEC-024).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/SessionToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+            examples:
+              minimal:
+                summary: URL only; the default expiry (30 days) applies
+                value: { url: "https://example.com/a/long/path?x=1" }
+              withExpiry:
+                summary: Absolute expiry as an RFC 3339 timestamp
+                value: { url: "https://example.com/promo", expires_at: "2027-01-31T12:00:00Z" }
+      responses:
+        '201':
+          description: Created, or a replay of a previously created link (see `Idempotency-Replayed`).
+          headers:
+            X-Session-Token:
+              $ref: '#/components/headers/IssuedSessionToken'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLinkResponse'
+              examples:
+                created:
+                  value:
+                    short_code: "aZ3kP9q"
+                    short_url: "http://localhost:8080/aZ3kP9q"
+                    original_url: "https://example.com/a/long/path?x=1"
+                    created_at: "2026-10-16T10:00:00Z"
+                    expires_at: "2026-11-15T10:00:00Z"
+        '400':
+          description: Validation-class rejection. Nothing is stored and the idempotency key is not consumed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                badScheme:
+                  value: { type: "urn:urlshort:problem:unsupported_scheme", title: "Unsupported URL scheme", status: 400, reason: unsupported_scheme, request_id: "req_01" }
+                expiryRange:
+                  value: { type: "urn:urlshort:problem:expiry_out_of_range", title: "Expiry out of range", status: 400, reason: expiry_out_of_range, request_id: "req_02" }
+                relativeExpiry:
+                  value: { type: "urn:urlshort:problem:unsupported_expiry_representation", title: "Relative expiry is not supported", status: 400, reason: unsupported_expiry_representation, request_id: "req_03" }
+        '409':
+          description: |
+            Idempotency conflict. `idempotency_key_conflict`: the key was used with a different request
+            signature (URL, metadata, or expiry). `idempotency_request_in_progress`: the same key and signature is
+            still executing (the record has a 60-second lease, DEC-030).
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                conflict:
+                  value: { type: "urn:urlshort:problem:idempotency_key_conflict", title: "Idempotency key reused with a different request signature", status: 409, reason: idempotency_key_conflict, request_id: "req_04" }
+                inProgress:
+                  value: { type: "urn:urlshort:problem:idempotency_request_in_progress", title: "Request in progress", status: 409, reason: idempotency_request_in_progress, request_id: "req_05" }
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          description: Permanent failure. With an `Idempotency-Key`, a FAILED record is stored and replayed for 24 hours (DEC-029).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: |
+            Transient failure (`persistence_unavailable`, or `request_superseded` when a lease-expired request is
+            aborted, DEC-034). No FAILED record is created and the key stays usable (DEC-033). On `request_superseded` no mapping was created by this request. Retrying with the same `Idempotency-Key` is recommended: it returns the outcome of the superseding request, or 409 `idempotency_request_in_progress` while that request is still running. A retry with a new key is permitted but creates a new link and may duplicate the one the superseding request created.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /{short_code}:
+    get:
+      tags: [Redirect]
+      operationId: resolveLink
+      summary: Resolve a short code
+      description: |
+        Valid, unexpired codes redirect with a temporary redirect (302) and `Cache-Control: no-store` so every visit
+        reaches the service (DEC-011). Unknown or malformed codes return the same 404 (FR-009). Expired codes return
+        410 with reason `link_expired`, distinct from 404 (DEC-006). The only link statuses are active and expired.
+        A short code is 7 base62 characters (case-sensitive); any other path value is a 404.
+      parameters:
+        - name: short_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '302':
+          description: Temporary redirect to the stored normalized destination.
+          headers:
+            Location:
+              description: The stored normalized destination URL.
+              schema:
+                type: string
+                format: uri
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '404':
+          description: Unknown or malformed code. Identical body for both, so existence is not disclosed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                notFound:
+                  value: { type: "urn:urlshort:problem:not_found", title: "Not found", status: 404, reason: not_found, request_id: "req_06" }
+        '410':
+          description: The link has expired.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                expired:
+                  value: { type: "urn:urlshort:problem:link_expired", title: "Link expired", status: 410, reason: link_expired, request_id: "req_07" }
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '503':
+          description: Transient persistence failure.
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /v1/links/{short_code}/stats:
+    get:
+      tags: [Links]
+      operationId: getLinkStats
+      summary: Read the redirect count of a link
+      description: |
+        Only the creating client, identified by the same client identifier used for idempotency and rate limiting,
+        may read the count (DEC-049). Any other caller, and any unknown code, receives the same 404. The count is the
+        aggregate kept for the life of the link (DEC-055).
+      parameters:
+        - name: short_code
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 64
+        - $ref: '#/components/parameters/SessionToken'
+      responses:
+        '200':
+          description: Current redirect count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkStats'
+              examples:
+                stats:
+                  value: { short_code: "aZ3kP9q", redirect_count: 42 }
+        '404':
+          description: Unknown code, or the caller is not the creating client. Identical in both cases.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /healthz:
+    get:
+      tags: [Operations]
+      operationId: getLiveness
+      summary: Liveness
+      description: Process is running. Reports no dependency state and exposes no secrets or topology (FR-021).
+      responses:
+        '200':
+          description: Alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Liveness'
+  /readyz:
+    get:
+      tags: [Operations]
+      operationId: getReadiness
+      summary: Readiness
+      description: Reports whether required dependencies (persistence) are usable (FR-021). Liveness stays accurate when not ready.
+      responses:
+        '200':
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+  /metrics:
+    get:
+      tags: [Operations]
+      operationId: getMetrics
+      summary: Metrics in the Prometheus text exposition format
+      description: Bound to the loopback interface by default. Contains no secrets, no client addresses, and no destination URLs.
+      responses:
+        '200':
+          description: Metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Optional. 1 to 128 visible ASCII characters (PA-004). Scoped per client, retained 24 hours from the
+        moment the record reaches COMPLETED or FAILED (DEC-031). The request signature is
+        (normalized URL + canonical metadata + canonical expiry), computed without reading the clock (DEC-023,
+        DEC-025). Same key and signature replays; any difference returns 409.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[\x21-\x7E]+$'
+    SessionToken:
+      name: X-Session-Token
+      in: header
+      required: false
+      description: |
+        Optional anonymous session token issued by this service. When present it takes precedence over the IP-address
+        hash; the token is bound to the identifier used at first contact (DEC-053, DEC-057).
+      schema:
+        type: string
+        minLength: 20
+        maxLength: 128
+  headers:
+    IssuedSessionToken:
+      description: Present only when a token was issued on this response (first contact without a token).
+      schema:
+        type: string
+    IdempotencyReplayed:
+      description: '`true` when the response is a replay of a stored COMPLETED or FAILED outcome (FR-016).'
+      schema:
+        type: string
+        const: 'true'
+    RetryAfter:
+      description: Seconds to wait before retrying.
+      schema:
+        type: integer
+        minimum: 0
+  responses:
+    RateLimited:
+      description: |
+        Rate limited on either dimension, per session token or per IP-address hash (DEC-057). Occurs before any
+        idempotency record is created.
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            limited:
+              value: { type: "urn:urlshort:problem:rate_limited", title: "Rate limited", status: 429, reason: rate_limited, request_id: "req_08" }
+  schemas:
+    CreateLinkRequest:
+      type: object
+      description: |
+        Only `url` and `expires_at` are accepted. Relative expiry fields (`ttl_seconds`, `expires_in`, or similar)
+        are rejected with reason `unsupported_expiry_representation`; any other unknown field is rejected with
+        `malformed_request`. A future minor version adds an optional `metadata` object (CR-001, Scenario B).
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          maxLength: 2048
+          description: Absolute `http` or `https` URL (DEC-008). Normalized per FR-002.
+        expires_at:
+          type: string
+          format: date-time
+          description: |
+            Absolute RFC 3339 timestamp with an offset. Must satisfy now < expires_at <= now + 365 days (DEC-024).
+            Omission means the default of 30 days, resolved on first execution and persisted (DEC-023).
+    CreateLinkResponse:
+      type: object
+      required: [short_code, short_url, original_url, created_at, expires_at]
+      additionalProperties: false
+      properties:
+        short_code:
+          type: string
+          pattern: '^[0-9A-Za-z]{7}$'
+        short_url:
+          type: string
+          format: uri
+        original_url:
+          type: string
+          description: The FR-002 normalized URL.
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    LinkStats:
+      type: object
+      required: [short_code, redirect_count]
+      additionalProperties: false
+      properties:
+        short_code:
+          type: string
+          pattern: '^[0-9A-Za-z]{7}$'
+        redirect_count:
+          type: integer
+          minimum: 0
+    Reason:
+      type: string
+      description: Stable machine-readable reason code.
+      enum:
+        - invalid_url
+        - url_too_long
+        - unsupported_scheme
+        - forbidden_destination
+        - malformed_request
+        - invalid_idempotency_key
+        - expiry_out_of_range
+        - unsupported_expiry_representation
+        - idempotency_key_conflict
+        - idempotency_request_in_progress
+        - rate_limited
+        - not_found
+        - link_expired
+        - persistence_unavailable
+        - request_superseded
+        - internal_error
+    Problem:
+      type: object
+      description: RFC 9457 problem details. No internal detail, stack trace, identifier, or secret is ever included (FR-019).
+      required: [type, title, status, reason, request_id]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          description: A `urn:urlshort:problem:<reason>` identifier.
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        reason:
+          $ref: '#/components/schemas/Reason'
+        request_id:
+          type: string
+          description: Correlation identifier, also present in logs and the application audit record (NFR-005).
+    Liveness:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          const: alive
+    Readiness:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        checks:
+          type: object
+          description: Named dependency states. Values only; no connection strings or topology.
+          additionalProperties:
+            type: string
+            enum: [ok, failed]

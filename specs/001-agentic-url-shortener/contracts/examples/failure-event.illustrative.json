@@ -1,0 +1,16 @@
+{
+  "failure_id": "fe-4",
+  "run_id": "0197a3c2-5a00-7c00-9f00-000000000001",
+  "instance_id": "ni-9",
+  "attempt_id": "at-17",
+  "failure_class": "TRANSIENT",
+  "source": "PERSISTENCE",
+  "synthetic": true,
+  "detected_at": "2026-10-16T10:20:00Z",
+  "recovery_started_at": "2026-10-16T10:20:01Z",
+  "recovery_completed_at": "2026-10-16T10:20:03Z",
+  "recovery_duration_ms": 3000,
+  "recovery_mechanism": "RETRY",
+  "status": "RECOVERED",
+  "clock_kind": "WALL"
+}

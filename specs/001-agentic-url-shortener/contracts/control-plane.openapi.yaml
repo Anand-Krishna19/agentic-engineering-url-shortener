@@ -1,0 +1,962 @@
+openapi: 3.1.0
+info:
+  title: Agentic SDLC Orchestrator (Control Plane)
+  version: 1.0.0
+  summary: Contract for workflow creation, inspection, approvals, work items, policy, audit, and measurements.
+  description: |
+    Contract owner: control plane. Traceability: FR-101 to FR-133 of
+    specs/001-agentic-sdlc-url-shortener/spec.md (v1.10).
+
+    Three credential roles, never shared (DEC-037, DEC-018):
+    - APPROVER: the human. Creates runs; records approvals, rejections, clarifications, and exception decisions.
+    - AGENT: automated workers. Claims and submits work items; may propose exceptions and changes. Can never approve.
+    - READER: the read-only audit role (assessment reviewer). May inspect only.
+
+    An approval-type request made with the AGENT or READER credential is denied with 403 `agent_cannot_approve` or
+    `forbidden_role`, changes no state, and is audited (`APPROVAL_DENIED`, `AGENT_ACTION_DENIED`).
+    Credentials never appear in any request log, response, audit event, or artifact.
+  license:
+    name: Proprietary (assessment prototype)
+    identifier: LicenseRef-Assessment
+servers:
+  - url: http://localhost:8090
+    description: Local single-node demonstration environment (ASM-007)
+security:
+  - ApproverBearer: []
+  - AgentBearer: []
+  - ReaderBearer: []
+tags:
+  - name: Workflows
+  - name: Approvals
+  - name: Work
+  - name: Policy
+  - name: Audit
+  - name: Operations
+paths:
+  /v1/workflows:
+    post:
+      tags: [Workflows]
+      operationId: createWorkflow
+      summary: Create a workflow run from a requirement
+      description: Roles that may call this - APPROVER only. Assigns the run identifier (also the correlation id) and records the policy catalogue version evaluated (FR-101).
+      security:
+        - ApproverBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkflowRequest'
+            examples:
+              scenarioA:
+                value:
+                  requirement_text: "As an API consumer I need to see how many times my short link has been followed, so that I can understand its usage."
+                  profile: "sdlc/1"
+                  scenario_tag: "SCN-A"
+                  agent_mode: "LIVE_EXTERNAL"
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowCreated'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}:
+    get:
+      tags: [Workflows]
+      operationId: getWorkflow
+      summary: Inspect a run
+      description: Roles - APPROVER, AGENT, READER. Read only (FR-102); never changes state.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Current state, stage statuses, blocked paths, pending approvals, artifacts, decision ids.
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/workflow-state.schema.json'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/events:
+    get:
+      tags: [Audit]
+      operationId: listAuditEvents
+      summary: List audit events for a run, in sequence order
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: after_seq
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+      responses:
+        '200':
+          description: Events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'schemas/audit-event.schema.json'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/lineage:
+    get:
+      tags: [Audit]
+      operationId: getLineage
+      summary: Decision and artifact lineage for a run
+      description: Requirement to artifact versions, consumptions, decisions, approvals, and replanning history (FR-108).
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Lineage graph.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lineage'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/resume:
+    post:
+      tags: [Workflows]
+      operationId: resumeWorkflow
+      summary: Resume after a recoverable interruption
+      description: |
+        Roles - APPROVER. Applies only to recoverable interruptions. A SAFE_STOPPED run is terminal and is never
+        resumed (DEC-050); the response is 409 `run_terminal`. Recovery of a safe-stopped run requires starting a new run.
+      security:
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Resumption accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeResult'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/cancel:
+    post:
+      tags: [Workflows]
+      operationId: cancelWorkflow
+      summary: Cancel a run (human decision)
+      description: Roles - APPROVER. Cancellation is a destructive action and is audited. Terminal runs cannot be cancelled.
+      security:
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumeResult'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/gates/{gate_id}/decision:
+    post:
+      tags: [Approvals]
+      operationId: decideGate
+      summary: Approve, reject, or escalate at a gate
+      description: |
+        Roles - APPROVER only (DEC-037). The subject hash binds the decision to the exact content reviewed; if the
+        subject has since changed the response is 409 `approval_subject_changed` (FR-123). If the run has already
+        entered safe-stop, the response is 409 `late_response_after_safe_stop`, the response is logged, and the run
+        stays SAFE_STOPPED (DEC-041). Timeout is never an approval (FR-114, FR-115).
+      security:
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/GateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'schemas/approval.schema.json#/$defs/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Decision recorded.
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/approval.schema.json#/$defs/ApprovalRecord'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/clarifications/{clarification_id}/answer:
+    post:
+      tags: [Approvals]
+      operationId: answerClarification
+      summary: Answer a clarification request (gate G-AMB)
+      description: Roles - APPROVER only. Records a decision, triggers impact analysis, and resumes the suspended path at the correct state (FR-113).
+      security:
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: clarification_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer, reason]
+              additionalProperties: false
+              properties:
+                option_id:
+                  type: string
+                answer:
+                  type: string
+                  minLength: 1
+                reason:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Answer recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationAnswered'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/work-items:
+    get:
+      tags: [Work]
+      operationId: listWorkItems
+      summary: List work items offered by a run
+      description: Roles - AGENT, APPROVER, READER.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [OFFERED, CLAIMED, SUBMITTED, ACCEPTED, REJECTED, EXPIRED]
+      responses:
+        '200':
+          description: Work items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkItem'
+  /v1/work-items/{work_item_id}/claim:
+    post:
+      tags: [Work]
+      operationId: claimWorkItem
+      summary: Claim a work item (lease)
+      description: Roles - AGENT only. The claim carries a lease; an expired lease is a recoverable failure.
+      security:
+        - AgentBearer: []
+      parameters:
+        - $ref: '#/components/parameters/WorkItemId'
+      responses:
+        '200':
+          description: Claimed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/work-items/{work_item_id}/submit:
+    post:
+      tags: [Work]
+      operationId: submitWorkItem
+      summary: Submit the artifact for a work item
+      description: |
+        Roles - AGENT only. A submission is idempotent on (work item, content hash). Generated code and tests do not
+        become complete or merge-eligible until a human decision at gate G-CODE (FR-133).
+      security:
+        - AgentBearer: []
+      parameters:
+        - $ref: '#/components/parameters/WorkItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkSubmission'
+      responses:
+        '200':
+          description: Submission accepted for node processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/exceptions:
+    post:
+      tags: [Policy]
+      operationId: proposeException
+      summary: Propose a policy exception
+      description: Roles - AGENT or APPROVER may propose. Only an APPROVER decision grants it. Non-waivable policies cannot receive an exception.
+      security:
+        - AgentBearer: []
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExceptionProposal'
+      responses:
+        '201':
+          description: Proposed. Gate G-EXC opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionState'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/exceptions/{exception_id}/decision:
+    post:
+      tags: [Policy]
+      operationId: decideException
+      summary: Approve or reject an exception
+      description: Roles - APPROVER only. Approval requires all of policy, reason, scope, compensating control, and an expiry or review condition; otherwise 400 `exception_incomplete`.
+      security:
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: exception_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, reason]
+              additionalProperties: false
+              properties:
+                decision:
+                  type: string
+                  enum: [APPROVE, REJECT]
+                reason:
+                  type: string
+                  minLength: 1
+                expires_at:
+                  type: string
+                  format: date-time
+                review_condition:
+                  type: string
+      responses:
+        '200':
+          description: Decision recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionState'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/change-requests:
+    post:
+      tags: [Policy]
+      operationId: proposeChange
+      summary: Propose a change to an approved item
+      description: Roles - AGENT or APPROVER may propose. Opens impact analysis and gate G-CHG (FR-126). Nothing takes effect before approval.
+      security:
+        - AgentBearer: []
+        - ApproverBearer: []
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeProposal'
+      responses:
+        '201':
+          description: Proposed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeState'
+        '400':
+          $ref: '#/components/responses/Problem'
+  /v1/workflows/{run_id}/policy-evaluations:
+    get:
+      tags: [Policy]
+      operationId: listPolicyEvaluations
+      summary: List policy evaluation results for a run
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Evaluations, one outcome per policy per evaluation point.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'schemas/policy-evaluation.schema.json'
+  /v1/workflows/{run_id}/release-readiness:
+    get:
+      tags: [Policy]
+      operationId: getReleaseReadiness
+      summary: Deterministic release-readiness determination
+      description: |
+        Pure function of recorded policy outcomes, exceptions, executed test evidence, and approvals (FR-128, ASM-013).
+        READY requires all mandatory policy checks PASS, zero unapproved exceptions, executed tests for all functional
+        requirements, and the release-owner approval. Always lists blocking items. Repeated calls on unchanged inputs
+        return identical results.
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Determination.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseReadiness'
+  /v1/workflows/{run_id}/measurements:
+    get:
+      tags: [Audit]
+      operationId: getRunMeasurements
+      summary: Measurements for one run
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Measurement report for the single-run population.
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/measurement-report.schema.json'
+  /v1/measurements/summary:
+    get:
+      tags: [Audit]
+      operationId: getMeasurementSummary
+      summary: Aggregate measurements over a stated population
+      description: MTTR counts recovered events only; unrecovered failures are reported separately. Synthetic and SIMULATED-clock events are reported separately. Never a production statistic.
+      parameters:
+        - name: scenario_tag
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SCN-A, SCN-B, SCN-C, TEST, NONE]
+        - name: agent_mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [LIVE_EXTERNAL, SCRIPTED, MIXED]
+      responses:
+        '200':
+          description: Report.
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/measurement-report.schema.json'
+  /v1/audit/verify:
+    post:
+      tags: [Audit]
+      operationId: verifyAuditChain
+      summary: Verify audit hash chains
+      description: Recomputes each hash chain. A broken chain is reported with the first bad sequence number and is a safe-stop condition for affected active runs (FR-120).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                run_id:
+                  type: string
+      responses:
+        '200':
+          description: Result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainVerification'
+  /v1/policies/catalogue:
+    get:
+      tags: [Policy]
+      operationId: getPolicyCatalogue
+      summary: The active versioned policy catalogue
+      responses:
+        '200':
+          description: Catalogue.
+          content:
+            application/json:
+              schema:
+                $ref: 'schemas/policy-catalogue.schema.json'
+  /healthz:
+    get:
+      tags: [Operations]
+      operationId: getLiveness
+      summary: Liveness
+      security: []
+      responses:
+        '200':
+          description: Alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status:
+                    type: string
+                    const: alive
+  /readyz:
+    get:
+      tags: [Operations]
+      operationId: getReadiness
+      summary: Readiness (persistence, policy catalogue loaded, audit chain verified at startup)
+      security: []
+      responses:
+        '200':
+          description: Ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+  /metrics:
+    get:
+      tags: [Operations]
+      operationId: getMetrics
+      summary: Prometheus text metrics
+      security: []
+      responses:
+        '200':
+          description: Metrics. Bound to loopback by default.
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    ApproverBearer:
+      type: http
+      scheme: bearer
+      description: The human approver credential. Never held by agents (DEC-037).
+    AgentBearer:
+      type: http
+      scheme: bearer
+      description: The agent credential. Cannot approve.
+    ReaderBearer:
+      type: http
+      scheme: bearer
+      description: Read-only audit credential (assessment reviewer, DEC-018).
+  parameters:
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    GateId:
+      name: gate_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    WorkItemId:
+      name: work_item_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    Problem:
+      description: Problem details with a stable reason (see schemas/problem.schema.json).
+      content:
+        application/problem+json:
+          schema:
+            $ref: 'schemas/problem.schema.json'
+  schemas:
+    CreateWorkflowRequest:
+      type: object
+      required: [requirement_text]
+      additionalProperties: false
+      properties:
+        requirement_text:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        profile:
+          type: string
+          pattern: '^[a-z0-9-]+/[0-9]+$'
+          default: sdlc/1
+        scenario_tag:
+          type: string
+          enum: [SCN-A, SCN-B, SCN-C, TEST, NONE]
+          default: NONE
+        agent_mode:
+          type: string
+          enum: [LIVE_EXTERNAL, SCRIPTED, MIXED]
+        parent_run_id:
+          type: string
+          description: Optional link to a SAFE_STOPPED run that this new run replaces (DEC-050). The stopped run is never modified.
+    WorkflowCreated:
+      type: object
+      required: [run_id, status, plan_version, policy_catalogue_version]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+          const: CREATED
+        plan_version:
+          type: integer
+          minimum: 1
+        policy_catalogue_version:
+          type: string
+    ResumeResult:
+      type: object
+      required: [run_id, status]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+          enum: [RUNNING, CANCELLED]
+    Lineage:
+      type: object
+      required: [run_id, requirement_id, plan_versions, artifact_versions, consumptions, decisions, approvals]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+        requirement_id:
+          type: string
+        plan_versions:
+          type: array
+          items:
+            type: object
+            required: [plan_version, reason, created_at]
+            additionalProperties: false
+            properties:
+              plan_version:
+                type: integer
+              reason:
+                type: string
+                enum: [INITIAL, UPSTREAM_CHANGE, CLARIFICATION, CHANGE_APPROVED, REJECTION]
+              parent_plan_version:
+                type: [integer, 'null']
+              created_at:
+                type: string
+                format: date-time
+        artifact_versions:
+          type: array
+          items:
+            type: object
+            required: [version_id, kind, version_no, status]
+            additionalProperties: true
+        consumptions:
+          type: array
+          items:
+            type: object
+            required: [instance_id, version_id]
+            additionalProperties: false
+            properties:
+              instance_id:
+                type: string
+              version_id:
+                type: string
+        decisions:
+          type: array
+          items:
+            type: object
+            required: [decision_id, kind]
+            additionalProperties: true
+        approvals:
+          type: array
+          items:
+            $ref: 'schemas/approval.schema.json#/$defs/ApprovalRecord'
+    ClarificationAnswered:
+      type: object
+      required: [clarification_id, state, decision_id, impacted_nodes, resumed_nodes]
+      additionalProperties: false
+      properties:
+        clarification_id:
+          type: string
+        state:
+          type: string
+          const: ANSWERED
+        decision_id:
+          type: string
+        impacted_nodes:
+          type: array
+          items:
+            type: string
+        resumed_nodes:
+          type: array
+          items:
+            type: string
+    WorkItem:
+      type: object
+      required: [work_item_id, run_id, node_key, role, state, package_ref]
+      additionalProperties: false
+      properties:
+        work_item_id:
+          type: string
+        run_id:
+          type: string
+        node_key:
+          type: string
+        role:
+          type: string
+          description: Agent role, for example requirements-analyst, designer, test-author, implementer, documenter.
+        state:
+          type: string
+          enum: [OFFERED, CLAIMED, SUBMITTED, ACCEPTED, REJECTED, EXPIRED]
+        package_ref:
+          type: string
+          description: Content-addressed reference to the work package (inputs, constraints, acceptance criteria).
+        lease_expires_at:
+          type: [string, 'null']
+          format: date-time
+        clock_kind:
+          type: string
+          enum: [WALL, SIMULATED]
+    WorkSubmission:
+      type: object
+      required: [agent_id, content_hash, artifact_ref, summary]
+      additionalProperties: false
+      properties:
+        agent_id:
+          type: string
+        content_hash:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+        artifact_ref:
+          type: string
+        summary:
+          type: string
+          minLength: 1
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    ExceptionProposal:
+      type: object
+      required: [policy_id, reason, scope, compensating_control]
+      additionalProperties: false
+      properties:
+        policy_id:
+          type: string
+          pattern: '^POL-[A-Z]+-[0-9]{3}$'
+        reason:
+          type: string
+          minLength: 1
+        scope:
+          type: string
+          minLength: 1
+        compensating_control:
+          type: string
+          minLength: 1
+        proposed_expiry:
+          type: string
+          format: date-time
+        proposed_review_condition:
+          type: string
+    ExceptionState:
+      type: object
+      required: [exception_id, policy_id, state]
+      additionalProperties: false
+      properties:
+        exception_id:
+          type: string
+        policy_id:
+          type: string
+        state:
+          type: string
+          enum: [REQUESTED, APPROVED, REJECTED, EXPIRED, REVOKED]
+        gate_id:
+          type: string
+        approver_identity:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        review_condition:
+          type: string
+    ChangeProposal:
+      type: object
+      required: [kind, subject_ref, summary]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [REQUIREMENT, ARCHITECTURE, SCHEMA, WORKFLOW_STATE, SECURITY_CONTROL, RELEASE_CRITERION, CONTRACT]
+        subject_ref:
+          type: string
+        summary:
+          type: string
+          minLength: 1
+        contract_change_record:
+          $ref: 'schemas/change-record.schema.json'
+    ChangeState:
+      type: object
+      required: [change_id, state]
+      additionalProperties: false
+      properties:
+        change_id:
+          type: string
+        state:
+          type: string
+          enum: [PROPOSED, IMPACT_DONE, APPROVED, REJECTED, APPLIED, ROLLED_BACK]
+        gate_id:
+          type: string
+    ReleaseReadiness:
+      type: object
+      required: [run_id, outcome, evaluated_at, catalogue_version, checks, blocking_items]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+        outcome:
+          type: string
+          enum: [READY, NOT_READY]
+        evaluated_at:
+          type: string
+          format: date-time
+        catalogue_version:
+          type: string
+        checks:
+          type: object
+          required: [all_mandatory_policies_pass, zero_unapproved_exceptions, tests_executed_for_all_requirements, release_owner_approved]
+          additionalProperties: false
+          properties:
+            all_mandatory_policies_pass:
+              type: boolean
+            zero_unapproved_exceptions:
+              type: boolean
+            tests_executed_for_all_requirements:
+              type: boolean
+            release_owner_approved:
+              type: boolean
+        blocking_items:
+          type: array
+          description: Policy ids, exception ids, requirement ids lacking executed tests, or missing approvals that block READY. Empty only when outcome is READY.
+          items:
+            type: object
+            required: [kind, ref, reason]
+            additionalProperties: false
+            properties:
+              kind:
+                type: string
+                enum: [POLICY_FAIL, UNAPPROVED_EXCEPTION, EXPIRED_EXCEPTION, MISSING_TEST_EVIDENCE, MISSING_APPROVAL, AUDIT_CHAIN_BROKEN]
+              ref:
+                type: string
+              reason:
+                type: string
+        residual_risks:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    ChainVerification:
+      type: object
+      required: [verified, runs_checked]
+      additionalProperties: false
+      properties:
+        verified:
+          type: boolean
+        runs_checked:
+          type: integer
+          minimum: 0
+        first_bad:
+          type: object
+          required: [run_id, seq]
+          additionalProperties: false
+          properties:
+            run_id:
+              type: string
+            seq:
+              type: integer
+    Readiness:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ok, failed]

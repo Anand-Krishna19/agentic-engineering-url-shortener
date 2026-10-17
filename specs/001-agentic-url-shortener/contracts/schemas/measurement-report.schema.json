@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:measurement-report:1.0.0",
+  "title": "Reliability and orchestration measurement report",
+  "description": "Computed measurements for a stated measurement population (FR-131, NFR-005). MTTR = total recovery duration across recovered failure events divided by the number of recovered failure events. Unrecovered failures are excluded from the denominator and reported separately. Never presented as production statistics.",
+  "type": "object",
+  "required": ["report_id", "generated_at", "population", "data_nature", "workflow_success_rate", "failure_rate", "retry_frequency", "compensation_frequency", "end_to_end_latency", "mttr", "limitations"],
+  "additionalProperties": false,
+  "properties": {
+    "report_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "population": {
+      "type": "object",
+      "required": ["run_ids", "agent_modes", "clock_kinds", "inclusion_rule", "exclusions"],
+      "additionalProperties": false,
+      "properties": {
+        "run_ids": { "type": "array", "items": { "type": "string" } },
+        "agent_modes": { "type": "array", "items": { "type": "string", "enum": ["LIVE_EXTERNAL", "SCRIPTED", "MIXED"] } },
+        "clock_kinds": { "type": "array", "items": { "type": "string", "enum": ["WALL", "SIMULATED"] } },
+        "inclusion_rule": { "type": "string" },
+        "exclusions": { "type": "array", "items": { "type": "string" }, "description": "For example human approval and clarification waiting time, planned suspensions." }
+      }
+    },
+    "data_nature": { "type": "string", "enum": ["DEMONSTRATION", "ACTUAL_LOCAL_EXECUTION"], "description": "Demonstration data is never production measurement." },
+    "workflow_success_rate": {
+      "type": "object",
+      "required": ["terminal_runs", "completed_runs", "rate"],
+      "additionalProperties": false,
+      "properties": {
+        "terminal_runs": { "type": "integer", "minimum": 0 },
+        "completed_runs": { "type": "integer", "minimum": 0 },
+        "safe_stopped_runs": { "type": "integer", "minimum": 0 },
+        "cancelled_runs": { "type": "integer", "minimum": 0 },
+        "rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "failure_rate": {
+      "type": "object",
+      "required": ["attempts", "failed_attempts", "rate"],
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 0 },
+        "failed_attempts": { "type": "integer", "minimum": 0 },
+        "rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "retry_frequency": {
+      "type": "object",
+      "required": ["node_executions", "retries", "rate"],
+      "additionalProperties": false,
+      "properties": {
+        "node_executions": { "type": "integer", "minimum": 0 },
+        "retries": { "type": "integer", "minimum": 0 },
+        "rate": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "compensation_frequency": {
+      "type": "object",
+      "required": ["effects", "rollbacks", "compensations"],
+      "additionalProperties": false,
+      "properties": {
+        "effects": { "type": "integer", "minimum": 0 },
+        "rollbacks": { "type": "integer", "minimum": 0 },
+        "compensations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "end_to_end_latency": {
+      "type": "object",
+      "required": ["runs", "unit", "inclusive_of_human_wait", "exclusive_of_human_wait"],
+      "additionalProperties": false,
+      "properties": {
+        "runs": { "type": "integer", "minimum": 0 },
+        "unit": { "type": "string", "const": "ms" },
+        "inclusive_of_human_wait": { "$ref": "#/$defs/Distribution" },
+        "exclusive_of_human_wait": { "$ref": "#/$defs/Distribution" }
+      }
+    },
+    "mttr": {
+      "type": "object",
+      "required": ["recovered_failure_events", "total_recovery_duration_ms", "mttr_ms", "unrecovered_failure_count", "measurement_population", "exclusions", "formula"],
+      "additionalProperties": false,
+      "properties": {
+        "recovered_failure_events": { "type": "integer", "minimum": 0 },
+        "total_recovery_duration_ms": { "type": "integer", "minimum": 0 },
+        "mttr_ms": { "type": ["number", "null"], "minimum": 0, "description": "Null when there are zero recovered events. Never computed over unrecovered events." },
+        "unrecovered_failure_count": { "type": "integer", "minimum": 0, "description": "Reported separately; excluded from the MTTR denominator." },
+        "individual_recoveries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["failure_id", "detected_at", "recovery_started_at", "recovery_completed_at", "recovery_duration_ms", "recovery_mechanism", "status", "synthetic", "clock_kind"],
+            "additionalProperties": false,
+            "properties": {
+              "failure_id": { "type": "string" },
+              "detected_at": { "type": "string", "format": "date-time" },
+              "recovery_started_at": { "type": "string", "format": "date-time" },
+              "recovery_completed_at": { "type": "string", "format": "date-time" },
+              "recovery_duration_ms": { "type": "integer", "minimum": 0 },
+              "recovery_mechanism": { "type": "string", "enum": ["RETRY", "RESUME", "FALLBACK", "COMPENSATION", "HUMAN_INTERVENTION"] },
+              "status": { "type": "string", "const": "RECOVERED" },
+              "synthetic": { "type": "boolean" },
+              "clock_kind": { "type": "string", "enum": ["WALL", "SIMULATED"] }
+            }
+          }
+        },
+        "unrecovered_events": { "type": "array", "items": { "type": "string" }, "description": "Failure ids." },
+        "excluded_events": {
+          "type": "array",
+          "description": "Events left out of the MTTR numerator and denominator, each with the reason, so exclusions are never silent.",
+          "items": {
+            "type": "object",
+            "required": ["failure_id", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "failure_id": { "type": "string" },
+              "reason": { "type": "string", "enum": ["OPEN", "SIMULATED_CLOCK_STRATUM", "SYNTHETIC_STRATUM", "HUMAN_INTERVENTION", "OUTSIDE_POPULATION"] }
+            }
+          }
+        },
+        "measurement_population": { "type": "string" },
+        "exclusions": { "type": "array", "items": { "type": "string" } },
+        "formula": { "type": "string", "const": "MTTR = total recovery duration across recovered failure events / number of recovered failure events" }
+      }
+    },
+    "limitations": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Demonstration-data limitations, always present." }
+  },
+  "$defs": {
+    "Distribution": {
+      "type": "object",
+      "required": ["count"],
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "min": { "type": ["number", "null"] },
+        "p50": { "type": ["number", "null"] },
+        "p95": { "type": ["number", "null"] },
+        "max": { "type": ["number", "null"] }
+      }
+    }
+  }
+}

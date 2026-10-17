@@ -1,0 +1,14 @@
+{
+  "approval_id": "appr-7",
+  "gate_id": "gate-arch-1",
+  "gate_key": "G-ARCH",
+  "decision": "APPROVE",
+  "actor_identity": "approver-1",
+  "role_string": "Reviewer",
+  "credential_id": "cred-approver-01",
+  "reason": "Design reviewed; approved",
+  "decided_at": "2026-10-16T10:15:30Z",
+  "clock_kind": "WALL",
+  "subject_hash_at_decision": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "valid": true
+}
