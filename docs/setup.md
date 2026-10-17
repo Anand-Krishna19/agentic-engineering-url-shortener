@@ -17,6 +17,7 @@ Requires Node.js 20 or later (ADR-001).
 | T002 | Done | `tests/unit/compose/compose.test.ts` (red: 7 failed, file missing; then passed). Later verified with `docker compose up --wait`: both services healthy; Redis `save` empty and `appendonly no`. |
 | T003 | Done | `tests/persistence/schema/schema.test.ts` (red: hook failed, SQL files missing, 11 skipped; then 11 passed against a real postgres:16.2-alpine container). Mutation check: removing the audit REVOKE made 2 tests fail. Compose test extended (red 1 failed, then passed). |
 | T004 | Done | `tests/unit/server/health.test.ts` (red: module `src/server.ts` missing, whole file failed; then 16 passed). `/healthz`, `/readyz`, `/metrics` per contract; Ajv strict settings (ADR-002); JSON logs with server-minted `request_id`, no peer address. `/metrics` is a comment-only stub (no collectors). |
+| T005 | Done | `tests/unit/types/types.test.ts` (red: modules missing; then 15 passed). Drift tests compare every exported vocabulary with `workflow-state.schema.json`, `audit-event.schema.json` and the T003 CHECK constraints. Mutation check: adding a bogus status failed 3 tests. IN_PROGRESS/COMPLETED/FAILED are idempotency states and are defined with T008, not here (tasks.md correction 2026-10-18). |
 
 ## Local dependencies (T002)
 
