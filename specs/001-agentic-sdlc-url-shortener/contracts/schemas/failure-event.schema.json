@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:failure-event:1.0.0",
+  "title": "Failure and recovery event (MTTR source record)",
+  "description": "One failure event with its recovery timestamps. Source for MTTR = total recovery duration across recovered events divided by the number of recovered events. Unrecovered events are never in the denominator and are reported separately.",
+  "type": "object",
+  "required": ["failure_id", "run_id", "failure_class", "source", "synthetic", "detected_at", "status", "clock_kind", "recovery_mechanism"],
+  "additionalProperties": false,
+  "properties": {
+    "failure_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "instance_id": { "type": "string" },
+    "attempt_id": { "type": "string" },
+    "failure_class": { "type": "string", "enum": ["TRANSIENT", "PERMANENT"] },
+    "source": { "type": "string", "enum": ["AGENT", "PERSISTENCE", "POLICY_EVALUATION", "WORK_ITEM_TIMEOUT", "LEASE_EXPIRY", "PROCESS_INTERRUPTION", "COMPENSATION", "INTEGRITY"] },
+    "synthetic": { "type": "boolean", "description": "True for injected faults. Synthetic events are reported separately from organically occurring ones." },
+    "detected_at": { "type": "string", "format": "date-time" },
+    "recovery_started_at": { "type": ["string", "null"], "format": "date-time" },
+    "recovery_completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "recovery_duration_ms": { "type": ["integer", "null"], "minimum": 0, "description": "recovery_completed_at minus detected_at, in milliseconds, on the stated clock." },
+    "recovery_mechanism": { "type": "string", "enum": ["RETRY", "RESUME", "FALLBACK", "COMPENSATION", "HUMAN_INTERVENTION", "NONE"] },
+    "status": { "type": "string", "enum": ["OPEN", "RECOVERED", "UNRECOVERED"] },
+    "clock_kind": { "type": "string", "enum": ["WALL", "SIMULATED"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "RECOVERED" } } },
+      "then": {
+        "required": ["recovery_started_at", "recovery_completed_at", "recovery_duration_ms"],
+        "properties": {
+          "recovery_started_at": { "type": "string", "format": "date-time" },
+          "recovery_completed_at": { "type": "string", "format": "date-time" },
+          "recovery_duration_ms": { "type": "integer", "minimum": 0 },
+          "recovery_mechanism": { "not": { "const": "NONE" } }
+        }
+      }
+    }
+  ]
+}

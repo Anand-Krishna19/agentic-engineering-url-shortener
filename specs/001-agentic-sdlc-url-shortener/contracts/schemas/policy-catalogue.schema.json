@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:policy-catalogue:1.0.0",
+  "title": "Versioned policy catalogue",
+  "description": "A simple versioned JSON catalogue (DEC-048). Every MUST in the constitution is a mandatory policy cited here. The catalogue version is recorded on every run (FR-101).",
+  "type": "object",
+  "required": ["catalogue_version", "constitution_version", "effective_date", "policies"],
+  "additionalProperties": false,
+  "properties": {
+    "catalogue_version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+$" },
+    "constitution_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "effective_date": { "type": "string", "format": "date" },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["policy_id", "title", "domain", "severity", "source", "evaluation_points", "check", "exception_allowed"],
+        "additionalProperties": false,
+        "properties": {
+          "policy_id": { "type": "string", "pattern": "^POL-[A-Z]+-[0-9]{3}$" },
+          "title": { "type": "string", "minLength": 1 },
+          "domain": { "type": "string", "enum": ["security", "compliance", "privacy", "audit-retention", "approved-dependencies", "licensing", "change-control", "process", "reliability", "traceability"] },
+          "severity": { "type": "string", "enum": ["mandatory", "advisory"], "description": "A mandatory policy cites a constitution MUST. Advisory policies never block." },
+          "source": {
+            "type": "object",
+            "required": ["principle", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "principle": { "type": "string", "pattern": "^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|Governance)$" },
+              "text": { "type": "string", "minLength": 1, "description": "The constitution wording this policy implements." }
+            }
+          },
+          "evaluation_points": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "enum": ["AFTER_NORMALIZE", "AFTER_DESIGN", "BEFORE_IMPLEMENT", "AFTER_TEST", "COMPLIANCE_CHECK", "RELEASE_READINESS", "ON_CHANGE", "ON_REPLAN"] }
+          },
+          "check": {
+            "type": "object",
+            "required": ["kind", "ref"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "enum": ["automated", "evidence", "human-attested"] },
+              "ref": { "type": "string", "minLength": 1, "description": "Registered check function id, evidence rule id, or gate key." }
+            }
+          },
+          "exception_allowed": { "type": "boolean", "description": "False for non-waivable policies (Constitution Governance)." },
+          "advisory_note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

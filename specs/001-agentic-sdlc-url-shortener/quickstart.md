@@ -1,0 +1,112 @@
+# Quickstart: Run and Validate the Prototype
+
+**Feature**: `001-agentic-sdlc-url-shortener` | **Plan**: [plan.md](plan.md)
+
+**Status: target guide. Nothing described below is implemented or executed yet.** Command names are the planned interface and may change when tasks are generated. Expected outcomes are targets to verify, not results. Evidence only exists once these steps have been run.
+
+## 1. Prerequisites
+
+| Need | Version | Check | State on the candidate's machine (checked 2026-10-16) |
+|------|---------|-------|--------------------------------------------------------|
+| Node.js | "20 or later" supported, **tested on Node 24** (DEC-071) | `node --version` | Present (24.22.0) |
+| npm | any current | `npm --version` | Present (11.19.1) |
+| Docker (daemon running) | any current | `docker version` | CLI present (29.8.2); **daemon was not running**; start Docker Desktop first |
+| git | any | `git --version` | Present |
+| Network | first dependency install and image pull; scan data (offline runs are labelled OFFLINE) | n/a | n/a |
+
+PostgreSQL 16 and Redis 7.2 are **not installed natively**; they run in pinned containers from the Compose file (PA-014, DEC-098; exact tags and digests recorded at CP-1). There is **no CI platform**: all verification is local (DEC-099). No API key is needed. Container use is a local-development convenience, not a deployment (EXC-002).
+
+## 2. Set Up (PowerShell, from the repository root)
+
+```powershell
+npm ci                       # install exactly what the lock file says
+docker compose up -d         # docker-compose.yml: PostgreSQL 16 (POSTGRES_USER=app, POSTGRES_DB=urlshortener) and Redis 7.2 (no persistence), loopback only, with health checks
+npm run orch -- init         # generate credentials, the IP-hash secret, and the container passwords into .secrets/ (shown once, git-ignored)
+$env:APPROVER_IDENTITY = "human-candidate"       # the CLI reads credentials from environment variables only (DEC-110)
+$env:APPROVER_CREDENTIAL = "<secret printed by init>"   # human shell only; never in an agent environment
+npm run migrate              # apply migrations to both PostgreSQL databases (uses the container admin credential for this command only; the services run as one DML-only role per plane, DEC-095)
+npm run orch -- policies check   # validate the policy catalogue against its schema and the constitution MUST list
+```
+
+Expected: dependencies installed; both containers healthy; three credentials (approver, agent, reader) created; migrations applied; catalogue valid. The approver credential must **not** be in the environment of any agent process.
+
+## 3. Run the Two Planes (two terminals)
+
+```powershell
+npm run shortener -- serve   # application plane on http://127.0.0.1:8080
+npm run orch -- serve        # control plane on http://127.0.0.1:8090
+```
+
+Expected: `GET /healthz` returns `alive` on both; `GET /readyz` returns `ready`. With Redis stopped, the shortener keeps serving and `readyz` shows the cache check failed (ADR-015).
+
+## 4. Smoke Checks (application plane)
+
+```powershell
+curl.exe -s -X POST http://127.0.0.1:8080/v1/links -H "Content-Type: application/json" -d "{\"url\":\"https://example.com/a?x=1\"}"
+curl.exe -s -i http://127.0.0.1:8080/<short_code>
+```
+
+Expected: `201` with a 7-character `short_code` and an `X-Session-Token` header on first contact; the second call returns `302` with `Location: https://example.com/a?x=1` and `Cache-Control: no-store`. Invalid input (for example `javascript:alert(1)`) returns `400` with reason `unsupported_scheme` and stores nothing. A body containing `ttl_seconds` returns `400` with reason `unsupported_expiry_representation` (not silently accepted).
+
+## 5. Run the Full Verification (all test categories, scans, reports)
+
+```powershell
+npm run verify               # lint, types, all test categories, scans, tests-for-every-FR and trace reports
+```
+
+Expected: every functional requirement shows at least one executed passing test; the command exits non-zero otherwise. Outputs go to `evidence/verify/` with the environment and time recorded.
+
+## 6. Validate the Contracts
+
+```powershell
+npx vitest run tests/contract
+```
+
+Expected: both OpenAPI documents valid; every schema compiles under Ajv strict mode; examples conform; responses conform; no drift between contracts and registered routes; compatibility classification matches the declared version impact (CV-01 to CV-10).
+
+## 7. Run the Scenarios
+
+```powershell
+npm run orch -- scenario run SCN-C --mode scripted     # ambiguous requirement, deterministic
+npm run orch -- scenario run SCN-A --mode scripted     # greenfield rehearsal
+npm run orch -- scenario run SCN-B --mode scripted     # brownfield rehearsal
+npm run orch -- run inspect <run_id>                   # state, gates, pending approvals
+npm run orch -- approve <run_id> <gate_id> --decision APPROVE --reason "..."   # human only; needs the approver credential
+```
+
+Live (`--mode live`) runs for SCN-A and SCN-B offer work packages in `inbox/` for an AI-assisted session to fulfil and submit; each gate still needs the human. Scripted and live runs produce evidence labelled differently.
+
+Expected for SCN-C (no-change path): two material ambiguities detected, implementation entry refused and audited, a clarification gate opened and answered by the human, the run resumed at normalization, implementation nodes skipped with reasons, terminal `COMPLETED` with `NO_CHANGE_REQUIRED`.
+
+## 8. Inspect Evidence and Measurements
+
+```powershell
+npm run orch -- events <run_id>               # ordered audit timeline
+npm run orch -- audit verify                  # recompute hash chains
+npm run orch -- report measurements --scenario SCN-A   # success rate, failure rate, retries, MTTR (recovered events only), unrecovered count
+npm run orch -- export <run_id>               # evidence bundle with hashes and mode labels
+npm run orch -- trace                         # traceability report with explicit gaps
+npm run orch -- report final                  # writes evidence/final-report.md (what was built, decisions, test results, limitations, links to every evidence bundle)
+npm run orch -- readiness <run_id>            # deterministic READY or NOT_READY with blocking items
+```
+
+Expected: measurement reports state their population, exclusions, and demonstration-data limitations, and never present synthetic figures as production statistics; MTTR excludes unrecovered failures; a broken audit chain is reported with the first bad event.
+
+## 9. Demonstrate Release Blocking
+
+```powershell
+npx vitest run tests/release -t "RB-1|RB-2|RB-3"
+```
+
+Expected: a failed mandatory policy leaves readiness `NOT_READY` with `POLICY_FAIL`; an approved, complete, unexpired exception is the only way a waivable FAIL stops blocking; a non-waivable policy cannot be excepted.
+
+## 10. Troubleshooting
+
+| Symptom | Likely cause |
+|---------|--------------|
+| `docker compose up` fails to connect | Docker Desktop is not running; start it and retry |
+| Agent worker refuses to start | The approver credential is present in its environment; remove it |
+| `readyz` is `not_ready` | PostgreSQL is down or a migration is not applied; run `docker compose up -d` and `npm run migrate` |
+| `readyz` is `ready` but shows the cache check failed | Redis is down; the service runs in PostgreSQL-only mode, slower but correct (DEC-067) |
+| Scan step reports OFFLINE | Advisory data could not be fetched; the evidence is labelled OFFLINE and the human decides at G-SEC |
+| A run is `SAFE_STOPPED` | It is terminal; start a new run (optionally with `--parent-run-id`) |

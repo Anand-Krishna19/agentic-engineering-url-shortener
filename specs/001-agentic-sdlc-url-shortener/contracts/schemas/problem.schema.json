@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:problem:1.0.0",
+  "title": "Control-plane problem details (RFC 9457)",
+  "description": "Error body for the control-plane API. Stable machine-readable reasons. Never contains secrets, credentials, stack traces, or internal identifiers beyond the request correlation id.",
+  "type": "object",
+  "required": ["type", "title", "status", "reason", "request_id"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "type": "string", "pattern": "^urn:urlshort:problem:[a-z_]+$" },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "unauthenticated",
+        "forbidden_role",
+        "agent_cannot_approve",
+        "invalid_request",
+        "not_found",
+        "state_conflict",
+        "invalid_transition",
+        "gate_not_open",
+        "approval_subject_changed",
+        "late_response_after_safe_stop",
+        "run_terminal",
+        "work_item_not_claimable",
+        "entry_criteria_unmet",
+        "policy_blocked",
+        "exception_incomplete",
+        "policy_not_waivable",
+        "persistence_unavailable",
+        "internal_error"
+      ]
+    },
+    "detail": { "type": "string", "description": "Optional non-sensitive explanation." },
+    "request_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string" }
+  }
+}

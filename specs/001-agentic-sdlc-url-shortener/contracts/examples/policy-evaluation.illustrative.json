@@ -1,0 +1,16 @@
+{
+  "evaluation_id": "pe-31",
+  "run_id": "0197a3c2-5a00-7c00-9f00-000000000001",
+  "plan_version": 2,
+  "policy_id": "POL-SEC-005",
+  "catalogue_version": "v1.0",
+  "stage_key": "N13_COMPLIANCE_CHECK",
+  "outcome": "FAIL",
+  "mandatory": true,
+  "reason": "npm audit reported one unresolved high finding in a direct dependency",
+  "evidence_refs": ["evidence/scan/npm-audit-0001.json"],
+  "exception_id": null,
+  "evaluated_by_type": "SYSTEM",
+  "evaluated_at": "2026-10-16T11:02:00Z",
+  "clock_kind": "WALL"
+}

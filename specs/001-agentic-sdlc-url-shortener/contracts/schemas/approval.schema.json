@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:urlshort:schema:approval:1.0.0",
+  "title": "Approval record and decision request",
+  "description": "An approval, rejection, or escalation at a human gate (FR-114 to FR-116, DEC-037). Accepted only with the approver credential; the record stores the authenticated approver identity.",
+  "$defs": {
+    "ApprovalDecisionRequest": {
+      "type": "object",
+      "required": ["decision", "reason", "subject_hash"],
+      "additionalProperties": false,
+      "properties": {
+        "decision": { "type": "string", "enum": ["APPROVE", "REJECT", "ESCALATE"] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "role_string": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Logical role label recorded in the audit log (DEC-012)." },
+        "subject_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Hash of the content under review. A mismatch with the current subject hash is rejected as approval_subject_changed (FR-123)." }
+      }
+    },
+    "ApprovalRecord": {
+      "type": "object",
+      "required": ["approval_id", "gate_id", "gate_key", "decision", "actor_identity", "role_string", "credential_id", "reason", "decided_at", "clock_kind", "subject_hash_at_decision"],
+      "additionalProperties": false,
+      "properties": {
+        "approval_id": { "type": "string" },
+        "gate_id": { "type": "string" },
+        "gate_key": { "type": "string", "enum": ["G-AMB", "G-ARCH", "G-CODE", "G-SEC", "G-DESTR", "G-EXC", "G-RISK", "G-REL", "G-FINAL", "G-CHG"] },
+        "decision": { "type": "string", "enum": ["APPROVE", "REJECT", "ESCALATE"] },
+        "actor_identity": { "type": "string", "minLength": 1, "description": "Authenticated approver identity." },
+        "role_string": { "type": "string", "minLength": 1 },
+        "credential_id": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "clock_kind": { "type": "string", "enum": ["WALL", "SIMULATED"] },
+        "subject_hash_at_decision": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "valid": { "type": "boolean", "description": "False once the subject hash has changed since the decision (superseded)." }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/ApprovalRecord" }
+  ]
+}

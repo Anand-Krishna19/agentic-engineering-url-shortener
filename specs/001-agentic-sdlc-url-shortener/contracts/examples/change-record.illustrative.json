@@ -1,0 +1,24 @@
+{
+  "change_id": "CHG-001",
+  "title": "CR-001: add optional metadata object to the short-link creation request",
+  "contract": "shortener-api",
+  "owner": "application plane",
+  "from_version": "1.0.0",
+  "to_version": "1.1.0",
+  "version_impact": "MINOR",
+  "backward_compatibility": {
+    "compatible": true,
+    "breaking_changes": [],
+    "notes": "Optional request field; absent metadata and an empty map canonicalize to the same idempotency signature (DEC-025), so v1.0 signatures stay valid."
+  },
+  "affected_consumers": ["API consumers", "contract tests", "idempotency signature computation"],
+  "tests": ["contract-create-with-metadata", "idempotency-signature-metadata-canonicalization", "regression-suite-v1.0"],
+  "documentation": ["contracts/shortener.openapi.yaml", "docs/api-changes.md"],
+  "rollout_or_migration": {
+    "steps": ["Apply migration 0002 (nullable metadata column)", "Deploy handler accepting metadata", "Run regression and contract tests"],
+    "migration_script": "migrations/shortener/0002_metadata.sql",
+    "rollback_or_compensation": "Rollback: abort the migration transaction. After release: compensate by a forward migration that ignores the column; the column is never dropped destructively without G-DESTR approval."
+  },
+  "required_approval": { "gate": "G-CHG", "status": "REQUIRED" },
+  "impact_analysis_ref": "evidence/impact/CR-001.json"
+}
