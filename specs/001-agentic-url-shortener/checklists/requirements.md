@@ -4,7 +4,7 @@
 **Created**: 2026-10-16
 **Feature**: [spec.md](../spec.md)
 
-Validation was a single review pass by the authoring agent plus mechanical ID counts: 56 functional requirements (FR-001 to FR-023 and FR-101 to FR-133), each with AC, NAC, and Evidence; 11 NFRs; 15 PVTs; 13 ambiguities (AMB-001 to AMB-013, all resolved); 4 known limitations (LIM-001; LIM-002, accepted, plan mitigation required; LIM-003, disclosed for acknowledgement; LIM-004, accepted by DEC-061). The FR count is unchanged by DEC-016, DEC-017, and DEC-021 to DEC-066, which only extended AC/NAC text. It is not a substitute for human review.
+Validation was a single review pass by the authoring agent plus mechanical ID counts: 56 functional requirements (FR-001 to FR-023 and FR-101 to FR-133), each with AC, NAC, and Evidence; 11 NFRs; 15 PVTs; 13 ambiguities (AMB-001 to AMB-013, all resolved); 4 known limitations (LIM-001; LIM-002, accepted, plan mitigation required; LIM-003, disclosed for acknowledgement; LIM-004, accepted by DEC-061). The FR count is unchanged by DEC-016, DEC-017, and DEC-021 to DEC-070, which only extended AC/NAC text. It is not a substitute for human review.
 
 ## Content Quality
 
@@ -44,7 +44,7 @@ Validation was a single review pass by the authoring agent plus mechanical ID co
 
 ## Notes
 
-- Specification status: Approved v1.10 by the human candidate, 2026-10-16 (DEC-015, DEC-020 to DEC-066). Decisions DEC-001 to DEC-066 are in the spec's Decision Record.
+- Specification status: Approved v1.11 by the human candidate, 2026-10-16 (DEC-015, DEC-020 to DEC-070). Decisions DEC-001 to DEC-070 are in the spec's Decision Record.
 - No ambiguity is open. LIM-002 (a slow, not crashed, request can outlive its 60-second lease) is accepted; the plan MUST implement a mitigation that prevents a lease-expired request from committing (DEC-034). Carried forward to the SCN-B change workflow: `metadata` bounds and logging treatment for CR-001 (ASM-008).
 - Negative acceptance coverage for the idempotency and expiry contract (FR-003, FR-010, FR-015, FR-016, FR-017, FR-018): relative expiry rejected; reordered metadata matches; absent versus empty metadata matches; timezone-offset-equivalent expiry matches; in-flight duplicate rejected; signature never reads the clock; FAILED record replays and cannot be retried with the same key; 60-second lease on IN_PROGRESS; retention starts at COMPLETED or FAILED; post-retention reuse documented as LIM-001.
 - Plan must provide a per-client identifier or anonymous session token (needed for idempotency-key scope, DEC-016, and rate limiting, FR-022).
@@ -53,3 +53,4 @@ Validation was a single review pass by the authoring agent plus mechanical ID co
 - Carried to `/speckit-plan` (not decided in the spec): what a lease-expired (aborted) request returns to its own client; the mitigation mechanism for LIM-002; a per-client identifier or anonymous session token; the metadata bounds for CR-001 (ASM-008, deferred to the SCN-B workflow).
 - Clarification session 2026-10-16: Q1 answered (approver credential, DEC-037); review findings resolved (DEC-038 to DEC-044); DQ-001 to DQ-011 all resolved (DEC-045 to DEC-050, DEC-052 to DEC-057); approved assumptions ASM-012 to ASM-017 recorded (DEC-051, DEC-058). No question or ambiguity is open. Disclosed for acknowledgement: LIM-003 (clients sharing an IP-address hash share a rate limit).
 - 2026-10-16: plan decisions PD-01 to PD-08 approved and recorded as DEC-059 to DEC-066 (the human named DEC-058 to DEC-065; DEC-058 already existed, so numbering shifted by one). The technology stack (DEC-060) is recorded for lineage only; requirements stay implementation-independent, so the "no implementation details" item still holds. LIM-004 added.
+- 2026-10-16 (second round): PD-09, PD-10, the Docker verification risk, and PA-011 to PA-014 recorded as DEC-067 to DEC-070 (the human named DEC-066 and DEC-067, but DEC-066 already existed). No requirement text changed; the checklist items are unchanged.

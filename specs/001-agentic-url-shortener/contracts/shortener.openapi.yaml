@@ -8,7 +8,7 @@ info:
     Versioning: semantic. The `/v1` path segment is the major version. See contracts/README.md for
     compatibility and change-control rules.
 
-    Traceability: FR-001 to FR-023 of specs/001-agentic-sdlc-url-shortener/spec.md (v1.10).
+    Traceability: FR-001 to FR-023 of specs/001-agentic-sdlc-url-shortener/spec.md (v1.11).
 
     Error bodies use RFC 9457 problem details (`application/problem+json`) with a stable machine-readable
     `reason`. A redirect, not-found, or expired response from the redirect endpoint also uses these.

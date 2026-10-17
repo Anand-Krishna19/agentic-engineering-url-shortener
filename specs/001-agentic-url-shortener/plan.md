@@ -1,10 +1,10 @@
 # Implementation Plan: Agentic SDLC Orchestration and URL Shortener
 
-**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.10)
+**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.11)
 
 **Input**: Feature specification from `specs/001-agentic-sdlc-url-shortener/spec.md`
 
-**Status**: **Approved v1.0** by the human candidate on 2026-10-16 (PD-01 to PD-08, recorded as DEC-059 to DEC-066), **with two confirmations still open**: PD-09 (the sub-selections around the approved stack, including how Redis is used so the atomic check-and-commit of DEC-034 still holds) and PD-10 (retry guidance after `request_superseded`). No code has been written, and nothing in this plan is execution evidence unless it says "executed".
+**Status**: **Approved v1.1** by the human candidate on 2026-10-16: PD-01 to PD-08 (DEC-059 to DEC-066), then PD-09 and PD-10 confirmed (DEC-067, DEC-068), the Docker, PostgreSQL, and Redis verification risk accepted (DEC-069), and PA-011 to PA-014 approved (DEC-070). **No confirmation is open.** No code has been written, and nothing in this plan is execution evidence unless it says "executed".
 
 ## Summary
 
@@ -36,9 +36,9 @@ Approach: the **approved stack** (DEC-060): **TypeScript on Node.js 20+, Fastify
 
 **Language/Version**: TypeScript (strict) on Node.js 20 or later, developed on the installed Node 24.22.0; npm with a committed lock file; ES modules. *Approved, DEC-060, ADR-001.*
 
-**Primary Dependencies**: Fastify 5 (approved). Proposed companions (PD-09, PA-013): `pg`, `node-pg-migrate`, `ioredis`, `pino`, `prom-client`, `commander`, `uuid` (v7), `ajv` and `ajv-formats`, `@apidevtools/swagger-parser`; test and quality: Vitest and Supertest (approved), `fast-check`, `@vitest/coverage-v8`, ESLint with `typescript-eslint`, `tsc` strict; scans: `npm audit`, `secretlint`, `license-checker-rseidelsohn`. Installed together in a feasibility spike on Node 24.22.0 (research.md section 1.1).
+**Primary Dependencies**: Fastify 5 (approved). Companions (confirmed, DEC-070, PA-013): `pg`, `node-pg-migrate`, `ioredis`, `pino`, `prom-client`, `commander`, `uuid` (v7), `ajv` and `ajv-formats`, `@apidevtools/swagger-parser`; test and quality: Vitest and Supertest (approved), `fast-check`, `@vitest/coverage-v8`, ESLint with `typescript-eslint`, `tsc` strict; scans: `npm audit`, `secretlint`, `license-checker-rseidelsohn`. Installed together in a feasibility spike on Node 24.22.0 (research.md section 1.1).
 
-**Storage**: PostgreSQL (approved), two databases (`shortener`, `orchestrator`) with one least-privilege role per plane, no ORM, numbered SQL migrations. Redis (approved) for rate limiting, the replay cache, and the advisory in-flight lock in the application plane only; PostgreSQL stays authoritative (ADR-015). *Not yet run on this machine: Docker was not running at the time of the check.*
+**Storage**: PostgreSQL (approved), two databases (`shortener`, `orchestrator`) with one least-privilege role per plane, no ORM, numbered SQL migrations. Redis (approved) for rate limiting, the replay cache, and the advisory in-flight lock in the application plane only; PostgreSQL stays authoritative (ADR-015). *Not yet run on this machine: Docker was not running at the time of the check. Starting Docker and verifying PostgreSQL and Redis is a mandatory precondition for implementation (CP-1, DEC-069). With Redis down the service runs in PostgreSQL-only mode (DEC-067).*
 
 **Testing**: Vitest with Supertest (approved); `fast-check` for canonicalization properties; requirement tags in test titles; a simulated `Clock` port; fault-injection hooks; a Supertest wrapper that validates every response against the contract. See testing-strategy.md.
 
@@ -103,7 +103,7 @@ flowchart LR
 | Dependency | Use | Failure mode and handling |
 |------------|-----|---------------------------|
 | Package index and advisory data | Install and scans | Offline use is labelled OFFLINE in evidence; the human decides at G-SEC |
-| PostgreSQL and Redis (local containers) | Source of truth for both planes; cache, rate limits, and in-flight lock for the application plane | PostgreSQL unavailable: the service reports not-ready and returns 503. Redis unavailable: degraded rate limiting and no replay cache, service stays ready (PA-011) |
+| PostgreSQL and Redis (local containers) | Source of truth for both planes; cache, rate limits, and in-flight lock for the application plane | PostgreSQL unavailable: the service reports not-ready and returns 503. Redis unavailable: PostgreSQL-only mode (PostgreSQL-based rate limiting, no replay cache, no advisory lock), service stays ready (DEC-067) |
 | Local filesystem | Evidence, inbox and outbox | Disk errors are transient or permanent failures per reliability.md |
 | git repository | Applying human-approved patches | Compensation by revert; merge to a protected branch is human only |
 | AI-assisted session (external-work adapter) | Fulfils work packages | Lease expiry, retry, fallback to human-authored submission |
@@ -149,7 +149,7 @@ The planes share only a small kernel (clock, identifiers, canonical JSON, hashin
 | Short-code generation (`C-CODE`) | CSPRNG base62, 7 characters, bounded collision recovery | FR-006, FR-007, ASM-015 |
 | Expiration (`C-EXP`) | Absolute RFC 3339 only, window now < expires_at <= now + 365 days, 30-day default after signature match, one boundary rule | FR-010, FR-011 |
 | Idempotency (`C-IDEM`) | Canonical signature, state machine, lease, atomic check-and-commit in PostgreSQL, Redis replay cache and advisory lock, retention | FR-015 to FR-018 |
-| Client identity and rate limiting (`C-CLIENT`) | Token and IP-hash identity, dual-dimension token buckets in Redis with in-process degradation | FR-022, ASM-012 |
+| Client identity and rate limiting (`C-CLIENT`) | Token and IP-hash identity, dual-dimension token buckets in Redis with PostgreSQL-based degradation | FR-022, ASM-012 |
 | Redirect resolution (`C-LINK`) | Temporary redirect, `no-store`, identical 404, distinct 410 | FR-008 to FR-011 |
 | Analytics (`C-ANA`) | Counter plus event in the redirect path, fail-open, stats read, 30-day purge | FR-012 to FR-014, FR-023 |
 | Persistence (`C-PERS`) | Repositories behind interfaces, PostgreSQL adapter, Redis cache adapter, migrations | FR-019, FR-018 |
@@ -184,7 +184,7 @@ Defined in [reliability.md](reliability.md), [observability.md](observability.md
 
 [Scenario A greenfield](scenarios/scenario-a-greenfield.md), [Scenario B brownfield](scenarios/scenario-b-brownfield.md), and [Scenario C ambiguous requirement](scenarios/scenario-c-ambiguous.md), each with initial input, interpretation, decomposition, orchestration path, approvals, failure paths, validation, evidence, and expected terminal outcome.
 
-## 3. Technology Decisions Summary (stack APPROVED, DEC-060; sub-selections PROPOSED, PD-09)
+## 3. Technology Decisions Summary (stack APPROVED, DEC-060; sub-selections CONFIRMED, DEC-067 and DEC-070)
 
 Full decision records (question, options, criteria, selection, rationale, consequences, risks, reversibility, validation) are in [research.md](research.md).
 
@@ -200,11 +200,11 @@ Full decision records (question, options, criteria, selection, rationale, conseq
 | ADR-008 | Telemetry | Stdlib JSON logs, `prometheus_client`, small span recorder | OpenTelemetry SDK (backlog) | High |
 | ADR-009 | Contracts and validation | OpenAPI 3.1 plus JSON Schema 2020-12, contract-first, custom compatibility checker | Code-generated contract, Schemathesis (backlog) | High |
 | ADR-010 | Time and determinism | `Clock` port with simulated clock, `clock_kind` everywhere | Patching the system clock, real sleeps | High |
-| ADR-011 | Rate limiting | **Redis** token buckets (approved), dual dimension, in-process degradation | In-process only, reverse proxy | High |
+| ADR-011 | Rate limiting | **Redis** token buckets (approved), dual dimension, PostgreSQL-based degradation when Redis is down (DEC-067) | In-process only, reverse proxy | High |
 | ADR-012 | Test and scan tooling | **Vitest and Supertest** (approved); `fast-check`, ESLint, `tsc` strict; `npm audit`, `secretlint`, `license-checker-rseidelsohn` | Jest, gitleaks, trivy | High |
 | ADR-013 | Scenario provenance (approved, DEC-059) | Core shortener built first (labelled not orchestrator-run); Scenario A governs the analytics increment that completes the baseline | Orchestrator-first; retroactive governance (rejected as fabricated provenance) | Low once evidence exists |
 | ADR-014 | Policy catalogue (approved, DEC-064) | JSON catalogue plus registered check functions | Open Policy Agent, hard-coded checks | High |
-| ADR-015 | Redis role and degraded behavior | **PostgreSQL authoritative; Redis as accelerator** for replay cache, advisory lock, rate limits | Redis as the sole idempotency store (breaks the atomic commit of DEC-034) | High |
+| ADR-015 | Redis role and degraded behavior (confirmed, DEC-067) | **PostgreSQL authoritative; Redis as accelerator** for replay cache, advisory lock, rate limits | Redis as the sole idempotency store (breaks the atomic commit of DEC-034) | High |
 
 ## 4. Constitution Check
 
@@ -212,7 +212,7 @@ Gate: must pass before research and be re-checked after design (Governance, "Com
 
 | Principle | Pre-research | Post-design | Justification |
 |-----------|--------------|-------------|---------------|
-| I Specification before implementation | PASS | PASS | Spec v1.10 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
+| I Specification before implementation | PASS | PASS | Spec v1.11 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
 | II Explicit agentic orchestration | PASS | PASS | Explicit graph, 15 node states, sequential and parallel paths, joins, conditional skip, suspension, replanning, interruption, resumption; every node defines inputs, outputs, criteria, owner, failure behavior |
 | III Human governance | PASS | PASS | Ten gates; timeout never approves; late responses rejected; separate approver credential (DEC-037) |
 | IV Test-driven engineering | PASS | PASS | Red-green-refactor protocol with recorded red runs, all required test categories, tests-for-every-FR gate. Exceptions to red-first must be recorded, never implied |
@@ -306,7 +306,7 @@ contracts (S1) → persistence and domain (S3) → engine and audit (S4) → cre
 
 | Checkpoint | Pass criteria | If not met (stop condition) |
 |------------|---------------|-----------------------------|
-| **CP-1** end of S1 | `npm ci` from the lock file succeeds; `tsc --noEmit` strict and a trivial Vitest test pass; the contract-validation script passes; **Docker is running and PostgreSQL and Redis start from the Compose file with a migration applied and a Redis round trip**; baseline `verify` green; scanners run and detect the seeded fake secret | SC-1: if Docker or the containers cannot be started, stop and bring ADR-003 and ADR-015 back to the human before any feature work (the repository ports would allow a different adapter, but that is the human's decision) |
+| **CP-1** end of S1 | `npm ci` from the lock file succeeds; `tsc --noEmit` strict and a trivial Vitest test pass; the contract-validation script passes; **Docker is running and PostgreSQL and Redis start from the Compose file with a migration applied and a Redis round trip**; baseline `verify` green; scanners run and detect the seeded fake secret | SC-1: if Docker or the containers cannot be started, **stop**: the project ends with a NOT_READY outcome and a documented blocker list (R-23, DEC-069); no substitute database is introduced without a new human decision |
 | **CP-2** end of Day 1 | Core FR tests green for FR-001 to FR-011 and FR-015 to FR-022 | SC-2: freeze everything new; finish the core first thing Day 2; cut all S items; compress Day 2 by moving CV-06 and extra fault injection to backlog |
 | **CP-3** midpoint of Day 2 | Engine, gates, credentials, policy evaluator, and readiness function green with RB-1 to RB-5 | SC-3: stop reliability extras (fallback depth); keep replan at whole-version granularity and disclose that Scenario A's affected-branch claim is weakened |
 | **CP-4** end of Day 2 | Retry, compensation, safe-stop, resume, replan tests green | SC-4: cut compensation scenarios beyond the revert case; record the cut and its effect on readiness |
@@ -346,7 +346,7 @@ Each slice is test-first (testing-strategy.md section 1) and ends with its evide
 | R-16 | Reviewers expect the orchestrator to have built everything | Medium and medium | ADR-013 boundary stated in the final report |
 | R-21 | Overall scope exceeds 2 to 3 days | **High** and high | Tiering, displacement rule, protected final block, honest NOT_READY minimum |
 | R-22 | Evidence volume and consistency between documents | Medium and low | One export mechanism; schema validation; hashes |
-| R-23 | **PostgreSQL and Redis prerequisites**: Docker was not running and neither service is installed natively | **High** and high | CP-1 requires them running; SC-1 stop condition; the quickstart states the prerequisite first |
+| R-23 | **PostgreSQL and Redis prerequisites**: Docker was not running and neither service is installed natively | **High** and high | **Accepted by the human (DEC-069).** CP-1 requires them running; SC-1 stops the project with NOT_READY and a blocker list if they cannot be; the quickstart states the prerequisite first |
 | R-24 | Test isolation and speed with real PostgreSQL and Redis (one database per worker, key prefixes) | Medium and medium | Template databases; PA-014; fewer, deeper integration tests |
 | R-25 | npm supply-chain exposure of a larger dependency tree | Medium and high | Direct-dependency allow-list, `npm ci`, lock integrity hashes, `npm audit` gate (DEC-054), G-CODE review of dependency changes |
 | R-26 | Cache and database disagree (stale Redis replay entry) | Low and medium | PostgreSQL authoritative; cache written after commit; stale-cache test |
@@ -365,22 +365,26 @@ Recorded in the specification's Decision Record. Numbering note: the request nam
 | PD-01 | Scenario provenance: core shortener first (labelled not orchestrator-run); Scenario A governs the analytics increment; retroactive governance rejected | Approved | DEC-059 |
 | PD-02 | Technology stack: **TypeScript on Node.js 20+, Fastify, PostgreSQL, Redis, Vitest with Supertest**; ADRs updated | Approved | DEC-060 |
 | PD-03 | Shared identity behind one IP-address hash accepted as a disclosed limitation, **LIM-004** (hardening deferred to BL-05) | Approved | DEC-061 |
-| PD-04 | A lease-expired request whose commit is aborted receives `503` with reason `request_superseded` and `Retry-After`; no mapping; retry-safe | Approved (retry guidance open, PD-10) | DEC-062 |
+| PD-04 | A lease-expired request whose commit is aborted receives `503` with reason `request_superseded` and `Retry-After`; no mapping; retry-safe | Approved; retry guidance confirmed (DEC-068) | DEC-062 |
 | PD-05 | Plan assumptions PA-001 to PA-010 as written | Approved | DEC-063 |
 | PD-06 | Draft policy catalogue v1.0; constitution MUSTs as the mandatory (and non-waivable) set | Approved | DEC-064 |
 | PD-07 | Scope tiers, checkpoints, stop conditions; **NOT_READY with a complete, honest blocker list is the defensible minimum; fabricating READY is prohibited** | Approved | DEC-065 |
 | PD-08 | Scenario designs: Scenario A HEAD-request seed, Scenario B question set, Scenario C input | Approved | DEC-066 |
 
-### 9.2 Open confirmations (found while applying the stack decision)
+### 9.2 Confirmations received on 2026-10-16 (second round)
 
-| ID | Item | Why it needs you | Recommendation |
-|----|------|------------------|----------------|
-| **PD-09** | The roles of PostgreSQL and Redis, and the libraries around the stack (research.md ADR-015, PA-011 to PA-014) | Your decision calls Redis the "idempotency store". DEC-034 requires the idempotency record and the mapping to commit as **one atomic operation**, which cannot span Redis and PostgreSQL: a crash or lease race between the two stores would allow exactly the double commit that LIM-002's mitigation prevents. | **PostgreSQL authoritative for idempotency records; Redis as accelerator** (replay cache, 60-second advisory lock, rate-limit buckets), correctness never dependent on Redis. This keeps Redis doing the jobs you named. Also confirm PA-011 (rate limiter degrades to in-process buckets when Redis is down, never open) and the library list in PA-013 |
-| **PD-10** | Retry guidance after `request_superseded` | Your wording says a retry **with a new idempotency key** is safe. The superseding request may already have created the link; a new key then creates a **second** link. Retrying with the **same** key returns the superseding request's outcome or 409 while it runs. | Document "retry with the same key" as the recommended path and "a new key is allowed but may duplicate"; the contract and data model now say this. Confirm or strike |
+Numbering note: the human asked for DEC-066 and DEC-067 "to avoid the DEC-058 collision", but DEC-066 is already the PD-08 approval. The confirmations are therefore **DEC-067 to DEC-070**.
 
-## 9.3 Approval of this plan's status
+| ID | Item | Decision | Record |
+|----|------|----------|--------|
+| PD-09 | Idempotency store architecture | **PostgreSQL is the authoritative store for idempotency records** (durable, atomic, transactional); **Redis handles the replay cache, 60-second advisory locks, and rate-limit buckets** (ephemeral). The atomic check-and-commit (DEC-034) is a PostgreSQL transaction, which prevents the double-commit LIM-002's mitigation exists to prevent. **Redis down:** PostgreSQL-only mode, slower but correct; rate limiting degrades to PostgreSQL-based checks; advisory locks are not used and PostgreSQL row-level locking is used instead | DEC-067 |
+| PD-10 | Retry after `request_superseded` | The contract **recommends retrying with the same idempotency key** (it returns the superseding request's outcome, or 409 while that is in progress); a client may use a new key but accepts the risk of creating a duplicate mapping | DEC-068 |
+| R-23 | Docker, PostgreSQL, and Redis verification risk | Accepted. Starting Docker Desktop and verifying both services is a mandatory precondition (CP-1). If that cannot be done, the project stops with a NOT_READY outcome and a documented blocker list | DEC-069 |
+| PA-011 to PA-014 | Redis-down behavior, library choices, Compose setup | Approved. **PA-011 is amended** to match the explicit Redis-down decision: the text approved "as written" said in-process buckets, while the same message decided PostgreSQL-based checks; the explicit decision governs | DEC-070 |
 
-The plan is **Approved v1.0** subject to PD-09 and PD-10. Until PD-09 is confirmed, the persistence and cache design (ADR-003, ADR-011, ADR-015) is the planner's proposal inside your approved stack.
+### 9.3 Approval of this plan's status
+
+The plan is **Approved v1.1** with **no open confirmation**. Persistence and cache design (ADR-003, ADR-011, ADR-015) follow DEC-060, DEC-067, and DEC-070.
 ## 10. Complexity Tracking
 
 | Complexity | Why needed | Simpler alternative rejected because |
@@ -393,15 +397,15 @@ The plan is **Approved v1.0** subject to PD-09 and PD-10. Until PD-09 is confirm
 
 ## 11. Planning Notes on the Specification
 
-The specification's **requirements** were not modified by planning. The human's approvals added LIM-004, the Decision Record entries DEC-059 to DEC-066, and moved the specification to v1.10. Items found while planning:
+The specification's **requirements** were not modified by planning. The human's approvals added LIM-004, the Decision Record entries DEC-059 to DEC-066, and moved the specification to v1.10, then to v1.11 with DEC-067 to DEC-070. Items found while planning:
 
 1. **Client identity behind a shared address (OD-02)**: resolved by DEC-061 as LIM-004.
 2. **New reason codes** (`request_superseded`, `malformed_request`, `invalid_idempotency_key`, `policy_not_waivable`, and others in the contracts): the specification requires stable reason categories but does not enumerate them; they are contract content approved with the plan (DEC-062 covers `request_superseded`; the rest are part of the contracts' approval under DEC-063 and DEC-066 and should be confirmed when the contracts are reviewed).
 3. **One approval serving two gates**: Scenarios A and B let the G-AMB approval double as the G-CHG approval when the change is exactly the clarified statement. This is a plan reading of FR-126, approved with the scenario designs (DEC-066).
 4. **`branch` as a path granularity**: the specification says "affected path"; the plan defines it as a decomposition branch with slice-level consumption.
 5. **FR-001 to FR-023 scope split**: analytics (FR-012 to FR-014, FR-023) is built in Scenario A (DEC-059).
-6. **Redis versus the atomic commit (PD-09)**: the stack decision interacts with DEC-034; the proposed resolution keeps the specification unchanged.
-7. **Infrastructure prerequisite**: PostgreSQL and Redis need Docker running; recorded as R-23 and made part of CP-1. ASM-007 (single-node local demonstration) and EXC-002 (no production deployment) still hold.
+6. **Redis versus the atomic commit (PD-09)**: resolved by DEC-067 (PostgreSQL authoritative, Redis as accelerator); the specification is unchanged.
+7. **Infrastructure prerequisite**: PostgreSQL and Redis need Docker running; recorded as R-23, accepted by the human (DEC-069), and made part of CP-1. ASM-007 (single-node local demonstration) and EXC-002 (no production deployment) still hold.
 ## 12. Next Steps (after your review, not before)
 
 Review and approve or amend the items in section 9; commit. Then, per the lifecycle, the next stages are `/speckit-checklist`, ADR creation from the approved ADR candidates, `/speckit-tasks`, `/speckit-analyze`, and only then implementation.

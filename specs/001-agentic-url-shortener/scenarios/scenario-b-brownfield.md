@@ -1,6 +1,6 @@
 # Scenario B Design: Brownfield (SCN-B, change request CR-001)
 
-**Spec**: [../spec.md](../spec.md) v1.10, SCN-B, FR-122, FR-123, FR-126, DEC-002, DEC-014, DEC-025, ASM-008 | **Plan**: [../plan.md](../plan.md) | **Contracts**: [../contracts/README.md](../contracts/README.md)
+**Spec**: [../spec.md](../spec.md) v1.11, SCN-B, FR-122, FR-123, FR-126, DEC-002, DEC-014, DEC-025, ASM-008 | **Plan**: [../plan.md](../plan.md) | **Contracts**: [../contracts/README.md](../contracts/README.md)
 
 Design only. Nothing here has been executed. Values marked *proposal* are options the human decides during the run; they are not decided by this plan (ASM-008).
 

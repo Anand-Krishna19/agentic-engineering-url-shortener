@@ -1,6 +1,6 @@
 # Data Model: Application Plane and Control Plane
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md)
 
 Design only. Column lists describe the persistence schema to be implemented test-first; they are not migrations. Every table lists the requirement IDs it serves. All timestamps are UTC, RFC 3339, with a `clock_kind` (`WALL` or `SIMULATED`) wherever a duration or deadline matters (PA-009, ADR-010). Technology (approved, DEC-060): PostgreSQL (ADR-003), one database per plane with one least-privilege role per plane, so each plane owns its data; Redis (ADR-015) is an accelerator for the application plane only and never the source of truth. Type notes: `timestamptz` for timestamps, `text` with the `"C"` (binary) collation where case-sensitive uniqueness matters, `jsonb` for structured payloads, `uuid` for time-ordered identifiers.
 
@@ -134,7 +134,25 @@ PostgreSQL holds the authoritative idempotency records and is the only place a m
 | `idem:{client_id}:{key}` | Replay cache: the stored COMPLETED or FAILED response and its signature | The remaining retention (24 hours from the terminal state, DEC-031) | **After** the PostgreSQL commit; read first on a request that carries the header, with PostgreSQL consulted on a miss or on any write path |
 | `idem-lock:{client_id}:{key}` | Advisory in-flight lock holding the owning `request_id`, so a concurrent duplicate fails fast with 409 `idempotency_request_in_progress` | 60 seconds (the lease, DEC-030) | When a request begins executing |
 
-Rules: the lock is advisory; the PostgreSQL conditional update on `lease_expires_at` is the authority for the lease (a stale or missing lock never allows a second commit). A cache entry is never trusted over the PostgreSQL record for a write decision. With Redis unavailable, the limiter degrades to in-process buckets, the replay cache is skipped, and the advisory lock is skipped (PostgreSQL still serializes duplicates through the primary key and the conditional update). Redis holds no raw URL beyond the cached response body, no client address, and no secret.
+Rules: the lock is advisory; the PostgreSQL conditional update on `lease_expires_at` is the authority for the lease (a stale or missing lock never allows a second commit). A cache entry is never trusted over the PostgreSQL record for a write decision. With Redis unavailable the service runs in **PostgreSQL-only mode** (DEC-067): the replay cache is skipped, **no advisory lock is used** (PostgreSQL row-level locking serializes duplicates), and rate limiting uses **PostgreSQL-based checks** (below). The mode is slower but correct; entering and leaving it is logged, counted, and audited, and readiness shows the cache check as failed while the service stays ready. Redis holds no raw URL beyond the cached response body, no client address, and no secret.
+### 2.6 PostgreSQL-Only Mode (Redis unavailable, DEC-067)
+
+| Concern | Behavior |
+|---------|----------|
+| Duplicate serialization | The idempotency primary key and a row-level lock replace the advisory lock: `INSERT ... ON CONFLICT (client_id, idempotency_key) DO NOTHING`; on conflict the existing row is read with `SELECT ... FOR UPDATE`, so a second concurrent request sees `IN_PROGRESS` and gets 409 `idempotency_request_in_progress`, or a COMPLETED or FAILED record and gets a replay. The atomic check-and-commit is unchanged. |
+| Replay lookups | Served from the PostgreSQL record (no cache). |
+| Rate limiting | Token buckets in a PostgreSQL table, used only in this mode. |
+
+**`rate_limit_buckets`** (only while Redis is unavailable)
+
+| Column | Type | Rules |
+|--------|------|-------|
+| `dimension` | text | `token` or `ip_hash`. Part of the primary key. |
+| `key_hash` | text | Hash of the session token or the IP-address hash. Part of the primary key. |
+| `tokens` | numeric | Current bucket level. |
+| `updated_at` | timestamptz | Time of the last refill, from the `Clock` port. |
+
+One statement per check refills the bucket from `$now`, takes one token when at least one is available, and returns whether the request is allowed. Row-level locking makes concurrent checks on the same key serialize. A first use inserts the row with `ON CONFLICT`. Idle rows are removed by the reaper. Redis buckets and PostgreSQL buckets are not synchronized, so limits restart when the mode switches (disclosed trade-off; the degradation is audited). The extra write per limited request is the cost of this mode.
 ## 3. Control Plane
 
 ### 3.1 Entity Relationships
@@ -268,5 +286,5 @@ Prohibited: any transition out of `COMPLETED` or `FAILED` before retention ends;
 
 | ID | Question | Proposed resolution | Needs |
 |----|----------|---------------------|-------|
-| OD-01 | What does the client of a lease-expired request receive when its commit is aborted (DEC-034 leaves it to the plan)? | **Resolved by DEC-062**: HTTP 503 `request_superseded` with a `Retry-After` header; no mapping is created and the idempotency record is not changed. Retry guidance, flagged for confirmation (PD-10): the approved wording says a retry with a new key is safe; retrying with the **same** key returns the superseding request's outcome (or 409 while it is in progress), whereas a new key creates a new link and may duplicate the one the superseding request created. | Resolved; guidance confirmation PD-10 |
+| OD-01 | What does the client of a lease-expired request receive when its commit is aborted (DEC-034 leaves it to the plan)? | **Resolved by DEC-062**: HTTP 503 `request_superseded` with a `Retry-After` header; no mapping is created and the idempotency record is not changed. Retry guidance, **confirmed by DEC-068**: the contract recommends retrying with the **same** `Idempotency-Key`, which returns the superseding request's outcome (a replay) or 409 `idempotency_request_in_progress` while it runs; a client may use a new key but accepts the risk of creating a duplicate link. | Resolved (DEC-062, DEC-068) |
 | OD-02 | Clients that share an IP-address hash share one client identity, including for link-count reads and idempotency scope (a consequence of DEC-053 and DEC-057, since tokens bind to the first-contact identifier). | **Resolved by DEC-061**: accepted and recorded as limitation LIM-004. Hardening through isolated sessions is backlog BL-05. | Resolved |

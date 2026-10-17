@@ -1,6 +1,6 @@
 # Scenario C Design: Ambiguous, Conflicting Requirement (SCN-C)
 
-**Spec**: [../spec.md](../spec.md) v1.10, SCN-C, FR-104, FR-111, FR-113, FR-115, FR-116, DEC-041, DEC-047, DEC-050 | **Plan**: [../plan.md](../plan.md) | **Model**: [../orchestration-model.md](../orchestration-model.md)
+**Spec**: [../spec.md](../spec.md) v1.11, SCN-C, FR-104, FR-111, FR-113, FR-115, FR-116, DEC-041, DEC-047, DEC-050 | **Plan**: [../plan.md](../plan.md) | **Model**: [../orchestration-model.md](../orchestration-model.md)
 
 Design only. Nothing here has been executed. The human's answers are made at run time; the plan does not predetermine them. Where the plan names a likely answer it is only to define the expected path.
 

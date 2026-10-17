@@ -1,6 +1,6 @@
 # Scenario A Design: Greenfield (SCN-A)
 
-**Spec**: [../spec.md](../spec.md) v1.10, SCN-A, FR-110 to FR-113, FR-122, DEC-002 | **Plan**: [../plan.md](../plan.md) | **Model**: [../orchestration-model.md](../orchestration-model.md)
+**Spec**: [../spec.md](../spec.md) v1.11, SCN-A, FR-110 to FR-113, FR-122, DEC-002 | **Plan**: [../plan.md](../plan.md) | **Model**: [../orchestration-model.md](../orchestration-model.md)
 
 Design only. Nothing here has been executed. Outcomes below are *expected* behavior to be verified; they are not evidence.
 

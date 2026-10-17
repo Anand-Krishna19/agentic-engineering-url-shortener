@@ -104,6 +104,6 @@ Expected: a failed mandatory policy leaves readiness `NOT_READY` with `POLICY_FA
 | `docker compose up` fails to connect | Docker Desktop is not running; start it and retry |
 | Agent worker refuses to start | The approver credential is present in its environment; remove it |
 | `readyz` is `not_ready` | PostgreSQL is down or a migration is not applied; run `docker compose up -d` and `npm run migrate` |
-| `readyz` is `ready` but shows the cache check failed | Redis is down; the service works with degraded rate limiting (PA-011) |
+| `readyz` is `ready` but shows the cache check failed | Redis is down; the service runs in PostgreSQL-only mode, slower but correct (DEC-067) |
 | Scan step reports OFFLINE | Advisory data could not be fetched; the evidence is labelled OFFLINE and the human decides at G-SEC |
 | A run is `SAFE_STOPPED` | It is terminal; start a new run (optionally with `--parent-run-id`) |

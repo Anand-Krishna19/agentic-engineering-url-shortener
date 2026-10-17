@@ -5,7 +5,7 @@ info:
   summary: Contract for workflow creation, inspection, approvals, work items, policy, audit, and measurements.
   description: |
     Contract owner: control plane. Traceability: FR-101 to FR-133 of
-    specs/001-agentic-sdlc-url-shortener/spec.md (v1.10).
+    specs/001-agentic-sdlc-url-shortener/spec.md (v1.11).
 
     Three credential roles, never shared (DEC-037, DEC-018):
     - APPROVER: the human. Creates runs; records approvals, rejections, clarifications, and exception decisions.

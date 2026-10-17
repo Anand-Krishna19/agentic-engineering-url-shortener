@@ -1,6 +1,6 @@
 # Reliability and Recovery Design
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md) | **Model**: [orchestration-model.md](orchestration-model.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md) | **Model**: [orchestration-model.md](orchestration-model.md)
 
 Design only. Covers FR-007, FR-017 to FR-020, FR-117 to FR-123, NFR-002, NFR-008, Constitution VIII. Numeric values are the approved PVTs (PVT-008 to PVT-011) or labelled plan proposals (PA).
 
@@ -48,6 +48,7 @@ Rules: a retry never repeats a COMMITTED non-idempotent effect (it adopts the re
 | Analytics capture failure | Redirect proceeds without recording the event (fail-open); the failure is logged and audited (DEC-007) | The mapping is never corrupted; the count may be a lower bound, visible through the failure records |
 | Scanner unavailable (offline) | Run the scan from the cached advisory data and label the evidence `OFFLINE` | A policy outcome based on stale data is flagged in the evidence; the human may decline to accept it at G-SEC |
 | Persistence unavailable on the application plane | None: return 503 and report not-ready | No success is ever reported for an unsaved mapping (FR-019) |
+| Redis unavailable (application plane) | **PostgreSQL-only mode** (DEC-067): no replay cache, no advisory lock (row-level locking instead), rate limiting through PostgreSQL-based checks | Slower but correct; never open; the degradation is logged, counted, audited, and shown in readiness while the service stays ready |
 
 ## 5. Rollback, Compensation, and Safe-Stop
 
@@ -91,6 +92,7 @@ Injected faults are **synthetic**. They produce real recovery behavior, but the 
 | FI-13 | Audit row tampered | Control | Trigger rejects an in-database edit; out-of-band edit detected by verify; SS-5 | FR-130, FR-120 |
 | FI-14 | Mandatory policy FAIL unresolved past the window (simulated) | Control | SS-4 | FR-125, DEC-045 |
 | FI-15 | Scanner offline | Control | Cached-data fallback, evidence labelled OFFLINE | FR-127 |
+| FI-16 | Redis killed mid-run | App | PostgreSQL-only mode: correct idempotent outcomes, PostgreSQL-based rate limiting, no advisory lock; degradation audited | FR-015, FR-022, DEC-067 |
 
 ## 9. Failure-Mode Analysis (summary)
 

@@ -1,6 +1,6 @@
 # Compliance and Change-Control Design
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md) | **Model**: [orchestration-model.md](orchestration-model.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md) | **Model**: [orchestration-model.md](orchestration-model.md)
 
 Design only. Covers FR-124 to FR-128, DEC-045 to DEC-048, DEC-052 to DEC-054, Constitution VI. The draft catalogue is [contracts/policy-catalogue.v1.0.draft.json](contracts/policy-catalogue.v1.0.draft.json) (51 entries; validated against its schema when this plan was produced).
 

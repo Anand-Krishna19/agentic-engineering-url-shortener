@@ -1,6 +1,6 @@
 # Observability, Audit, and Measurement Design
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md) | **Schemas**: [contracts/](contracts/)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md) | **Schemas**: [contracts/](contracts/)
 
 Design only. Covers FR-130, FR-131, NFR-005, NFR-006, Constitution IX, and the MTTR requirement. Telemetry sits behind a `Telemetry` port (ADR-008): `pino` structured JSON logs (Fastify's native logger, with redaction paths), `prom-client` metrics, and a small span recorder.
 
@@ -39,6 +39,7 @@ Design only. Covers FR-130, FR-131, NFR-005, NFR-006, Constitution IX, and the M
 | `urlshort_persistence_failures_total` | counter | `class` (`transient`, `permanent`) | App |
 | `urlshort_code_collisions_total` | counter | none | App |
 | `urlshort_ready` | gauge | none | App |
+| `urlshort_degraded_mode` | gauge | `reason` (`redis_unavailable`) | App |
 | `orch_runs_total` | counter | `status`, `release_outcome`, `agent_mode` | Control |
 | `orch_node_attempts_total` | counter | `node_key`, `outcome` | Control |
 | `orch_retries_total` | counter | `node_key` | Control |

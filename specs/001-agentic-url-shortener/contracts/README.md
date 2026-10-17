@@ -1,6 +1,6 @@
 # Contracts, Schemas, Compatibility, and Change Control
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [../spec.md](../spec.md) v1.10 | **Plan**: [../plan.md](../plan.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [../spec.md](../spec.md) v1.11 | **Plan**: [../plan.md](../plan.md)
 
 These are the explicit, versioned API and schema deliverables. They are authored before any implementation (Constitution I) and are the canonical source; code and tests conform to them, not the reverse (ADR-009).
 

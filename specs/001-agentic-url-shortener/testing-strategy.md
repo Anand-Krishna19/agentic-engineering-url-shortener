@@ -1,6 +1,6 @@
 # Testing Strategy
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md)
 
 Design only. Implements Constitution IV (test-driven engineering) and the release gate "tests executed successfully for all functional requirements" (ASM-013, DEC-052, readiness condition C3). No tests exist yet; everything below is planned and is evidence only after it runs.
 
@@ -52,7 +52,8 @@ Design only. Implements Constitution IV (test-driven engineering) and the releas
 
 - A lost or flushed Redis changes no outcome: the same requests give the same results with the cache empty.
 - A **stale or poisoned** replay-cache entry (injected) never overrides the PostgreSQL record on a write decision (TH-14).
-- With Redis killed mid-run: creation and redirect still work; the limiter degrades to in-process buckets and still limits; readiness reports the cache check as failed while the service stays ready; the degradation is logged, counted, and audited.
+- With Redis killed mid-run: creation and redirect still work; the service falls back to PostgreSQL-only mode (PostgreSQL-based rate limiting, row-level locking, no advisory lock) and still limits, still returns correct idempotent outcomes, and may be slower (a degraded-mode latency figure, if measured, is labelled); readiness reports the cache check as failed while the service stays ready; the degradation is logged, counted, and audited.
+- In PostgreSQL-only mode concurrent same-key requests are serialized by the primary key and row-level locking: exactly one mapping, the duplicate gets 409 or a replay; PostgreSQL-based buckets limit a token-discard abuse test the same way Redis buckets do.
 - The advisory lock never allows a second commit: with the lock removed, concurrent same-key requests still produce one mapping through the PostgreSQL conditional update.
 - Rate-limit buckets use the simulated clock passed into the script, so refill is deterministic.
 ### 4.2 Expiry and clock behavior (FR-010, FR-011)

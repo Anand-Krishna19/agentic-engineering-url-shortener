@@ -1,6 +1,6 @@
 # Traceability Design
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md)
 
 Design only. Covers FR-132, POL-TRC-001, Constitution X. The downstream columns below are **intentionally unfilled** ("pending"): they are populated from real artifacts as each stage happens, never pre-filled.
 

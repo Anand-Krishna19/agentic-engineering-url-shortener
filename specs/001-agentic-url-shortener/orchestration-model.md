@@ -1,6 +1,6 @@
 # Agentic Orchestration Model
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.10 | **Plan**: [plan.md](plan.md) | **Data**: [data-model.md](data-model.md)
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md) | **Data**: [data-model.md](data-model.md)
 
 Design only. This is the control plane's explicit, stateful, non-linear model (FR-103 to FR-123, FR-133). It is not a sequence of agents: stage order comes from a dependency graph, parallel branches fan out and synchronize, conditional branches skip with a recorded reason, human gates block paths, and replanning creates a new plan version instead of editing history.
 
