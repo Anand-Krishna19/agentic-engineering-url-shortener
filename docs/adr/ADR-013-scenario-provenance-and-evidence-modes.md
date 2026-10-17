@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The decision was explicitly approved by the human (DEC-059, 2026-10-16). This ADR text awaits approval before it is marked Accepted.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-082.
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The selection itself was explicitly approved by the human candidate (DEC-060, 2026-10-16). This ADR text, including the runtime-floor question in "Risks", awaits approval before it is marked Accepted.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-071. Clarification: tested on Node 22, "20 or later" supported.
 
 ## Context
 
@@ -30,7 +30,7 @@ K1 runs with what is installed; K2 time to a tested result; K3 testability and d
 
 ## Decision
 
-Use **TypeScript in strict mode on Node.js 20 or later**, developed on the installed Node 24.22.0, ES modules, npm with a committed `package-lock.json` and `npm ci` for reproducible installs (PA-012). Library selections around it are in the other ADRs (PA-013).
+Use **TypeScript in strict mode on Node.js**, declared compatible with **Node 20 or later** (`engines >= 20`) and **tested on Node 22 (LTS)** (DEC-071); the installed Node 24.22.0 is also usable. Node 20 is declared compatible but is not itself tested. ES modules, npm with a committed `package-lock.json` and `npm ci` for reproducible installs (PA-012). Library selections around it are in the other ADRs (PA-013).
 
 ## Rationale
 
@@ -48,7 +48,7 @@ It satisfies the approved requirements with the least friction: the toolchain is
 
 - R-01 toolchain churn: lock file; CP-1 verifies install, `tsc --noEmit` strict, a trivial test, and contract validation.
 - R-25 npm supply chain: allow-list of direct dependencies, integrity hashes, `npm ci`, `npm audit`, license check.
-- **Open point (needs a decision):** the approved floor is "Node.js 20+". By the published Node.js release schedule Node 20 reached end of life in April 2026 (verify against the official schedule). Recommendation: keep "20 or later" as the compatibility statement but set `engines` to the current LTS you actually test on (22 or 24) and run verification on 24.
+- **Runtime floor (resolved, DEC-071):** the human approved testing on Node 22 and supporting "20 or later". Node 22 is **not installed** on the candidate's machine (24.22.0 is), so provisioning Node 22 for verification (for example a version manager) is a checkpoint CP-1 task; until then results are labelled with the Node version actually used.
 
 ## Reversibility
 
@@ -63,4 +63,4 @@ Medium. Ports and the language-neutral contracts isolate the domain, but changin
 
 ## Validation
 
-CP-1: `npm ci` succeeds from the lock file; `tsc --noEmit` passes in strict mode; a trivial Vitest test passes; the contract-validation script passes (already executed once: 23 of 23 checks under Node 24). Review: the human approves the runtime-floor recommendation.
+CP-1: Node 22 is available for verification; `npm ci` succeeds from the lock file; `tsc --noEmit` passes in strict mode; a trivial Vitest test passes; the contract-validation script passes (already executed once: 23 of 23 checks under Node 24). Review: the human approves the runtime-floor recommendation.

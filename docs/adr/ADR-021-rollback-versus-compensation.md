@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The principle and the compensate-only list were approved (ASM-014, DEC-056); the effect-ledger mechanism awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-089.
 
 ## Context
 

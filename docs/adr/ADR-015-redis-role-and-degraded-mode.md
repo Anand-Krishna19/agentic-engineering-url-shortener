@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Redis as part of the stack was approved (DEC-060), and the role boundary and Redis-down behavior were confirmed (DEC-067, DEC-070). This ADR text awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-083.
 
 ## Context
 

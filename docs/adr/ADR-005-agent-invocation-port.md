@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Requires explicit approval. Implements the human's confirmed principle that the specification defines the orchestration contract and the plan defines the interface (ASM-017, DEC-058).
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-074.
 
 ## Context
 

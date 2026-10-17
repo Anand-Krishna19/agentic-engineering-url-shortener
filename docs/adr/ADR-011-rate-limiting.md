@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Redis for rate limiting was approved (DEC-060), the dual dimension was decided (DEC-057), and the Redis-down fallback to PostgreSQL-based checks was confirmed (DEC-067, DEC-070). This ADR text awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-080.
 
 ## Context
 

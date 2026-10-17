@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Vitest with Supertest was approved (DEC-060). The strategy, the companion tools (DEC-070, PA-013), and the requirement-tagging mechanism require approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-081.
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Implementation Plan: Agentic SDLC Orchestration and URL Shortener
 
-**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.11)
+**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.12)
 
 **Input**: Feature specification from `specs/001-agentic-sdlc-url-shortener/spec.md`
 
@@ -19,7 +19,8 @@ Approach: the **approved stack** (DEC-060): **TypeScript on Node.js 20+, Fastify
 
 | Document | Content |
 |----------|---------|
-| [research.md](research.md) | Technology decisions ADR-001 to ADR-015 (stack approved, sub-selections proposed), feasibility evidence for the approved stack, plan assumptions PA-001 to PA-014 |
+| [research.md](research.md) | Technology evaluation summary and feasibility evidence, plan assumptions PA-001 to PA-014 (background; the ADRs govern) |
+| [docs/adr/](../../docs/adr/README.md) | **Architecture Decision Records ADR-001 to ADR-027: the authoritative source for decisions (DEC-106).** 24 Accepted (DEC-071 to DEC-094); ADR-003, ADR-014, and ADR-025 revised and awaiting re-approval |
 | [data-model.md](data-model.md) | Persistence schemas for both planes, canonicalization rules, state machines, open design decisions OD-01 and OD-02 |
 | [contracts/](contracts/README.md) | OpenAPI contracts for both planes, JSON Schemas, examples, policy catalogue draft, compatibility and change-control rules |
 | [orchestration-model.md](orchestration-model.md) | Graph, node states, gates, replanning, recovery, compensation, agent contract, per-node definitions |
@@ -34,7 +35,7 @@ Approach: the **approved stack** (DEC-060): **TypeScript on Node.js 20+, Fastify
 
 ## Technical Context
 
-**Language/Version**: TypeScript (strict) on Node.js 20 or later, developed on the installed Node 24.22.0; npm with a committed lock file; ES modules. *Approved, DEC-060, ADR-001.*
+**Language/Version**: TypeScript (strict), declared compatible with Node.js 20 or later, **tested on Node 22 (LTS)** (DEC-071; Node 22 is not installed here, the installed version is 24.22.0, so provisioning Node 22 is a CP-1 task); npm with a committed lock file; ES modules. *Approved, DEC-060, DEC-071, ADR-001.*
 
 **Primary Dependencies**: Fastify 5 (approved). Companions (confirmed, DEC-070, PA-013): `pg`, `node-pg-migrate`, `ioredis`, `pino`, `prom-client`, `commander`, `uuid` (v7), `ajv` and `ajv-formats`, `@apidevtools/swagger-parser`; test and quality: Vitest and Supertest (approved), `fast-check`, `@vitest/coverage-v8`, ESLint with `typescript-eslint`, `tsc` strict; scans: `npm audit`, `secretlint`, `license-checker-rseidelsohn`. Installed together in a feasibility spike on Node 24.22.0 (research.md section 1.1).
 
@@ -176,7 +177,7 @@ All ten gates are in orchestration-model.md section 6, covering the eight you re
 Defined in [reliability.md](reliability.md), [observability.md](observability.md), [security.md](security.md), [compliance-and-change-control.md](compliance-and-change-control.md), and [testing-strategy.md](testing-strategy.md). Key commitments:
 
 - **MTTR** is computed as total recovery duration across recovered failure events divided by the number of recovered failure events; unrecovered failures are reported separately and are never in the denominator; every report states its population, exclusions, and demonstration-data limitations (observability.md section 5).
-- **Release blocking** is a pure function: READY only if all mandatory policies are satisfied, there are zero unapproved or expired exceptions, every functional requirement has an executed passing test, the release owner approved, and the audit chain verifies. Demonstration scenarios RB-1 to RB-5 prove that a failed mandatory policy prevents readiness (compliance-and-change-control.md section 4).
+- **Release blocking** is a pure function: READY only if no mandatory policy is BLOCKING (a mandatory FAIL always blocks; an approved exception on a waivable policy can only make it a CONDITIONAL_PASS, a derived disposition the human must accept explicitly at G-RISK and G-REL, DEC-096), every functional requirement has an executed passing test, the release owner approved, and the audit chain verifies. Demonstration scenarios RB-1 to RB-5 prove that a failed mandatory policy prevents readiness (compliance-and-change-control.md section 4).
 - **Human-approval proof**: three credentials, approvals bound to content hashes, agents denied and audited.
 - **Evidence honesty**: every item carries its agent mode and clock kind; scripted output can never be labelled live; illustrative examples are never evidence.
 
@@ -190,7 +191,7 @@ Full decision records (question, options, criteria, selection, rationale, conseq
 
 | ADR | Decision question | Proposed selection | Main rejected alternatives | Reversibility |
 |-----|-------------------|--------------------|----------------------------|---------------|
-| ADR-001 | Language and runtime | **TypeScript on Node.js 20+** (approved) | Python 3.13+ (the planner's earlier proposal, superseded); Java 27 without a build tool; Go and .NET not installed | Medium |
+| ADR-001 | Language and runtime | **TypeScript on Node.js, "20 or later" supported, tested on Node 22** (approved) | Python 3.13+ (the planner's earlier proposal, superseded); Java 27 without a build tool; Go and .NET not installed | Medium |
 | ADR-002 | Web framework | **Fastify 5** (approved), contract-first, Ajv set to reject (not strip or coerce) | Express, NestJS, Hono | High |
 | ADR-003 | Persistence | **PostgreSQL** (approved): two databases, least-privilege roles, `pg`, no ORM | SQLite (the earlier proposal, superseded), flat files | High (ports) |
 | ADR-004 | Orchestration engine | Small custom in-process engine | LangGraph, Temporal, Airflow or Prefect, BPMN engines | Medium |
@@ -205,6 +206,20 @@ Full decision records (question, options, criteria, selection, rationale, conseq
 | ADR-013 | Scenario provenance (approved, DEC-059) | Core shortener built first (labelled not orchestrator-run); Scenario A governs the analytics increment that completes the baseline | Orchestrator-first; retroactive governance (rejected as fabricated provenance) | Low once evidence exists |
 | ADR-014 | Policy catalogue (approved, DEC-064) | JSON catalogue plus registered check functions | Open Policy Agent, hard-coded checks | High |
 | ADR-015 | Redis role and degraded behavior (confirmed, DEC-067) | **PostgreSQL authoritative; Redis as accelerator** for replay cache, advisory lock, rate limits | Redis as the sole idempotency store (breaks the atomic commit of DEC-034) | High |
+| ADR-016 | Application architecture | **One repository, two planes, ports and adapters, minimal shared kernel** (accepted, DEC-084) | Two repositories or services; a monolithic module | Medium |
+| ADR-017 | Short-code generation and collisions | **CSPRNG base62, length 7, unique index, 3-attempt retry** (accepted, DEC-085) | Sequential codes; URL hash | Medium |
+| ADR-018 | Workflow state and lineage persistence | **Relational state plus immutable history, one transaction with the audit event** (accepted, DEC-086) | Pure event sourcing; JSON blobs | Medium |
+| ADR-019 | Dependency graph representation | **Versioned JSON profile, branch fan-out, named predicates** (accepted, DEC-087) | Hard-coded flow; external DAG format | Medium |
+| ADR-020 | Retry, fallback, and safe-stop policy | **One central policy with seven safe-stop triggers** (accepted, DEC-088) | Per-node ad hoc policies; retry library | High |
+| ADR-021 | Rollback versus compensation | **Effect ledger with reversibility classes** (accepted, DEC-089) | Saga framework; manual undo | High |
+| ADR-022 | Dynamic replanning | **Immutable plan versions with slice-level invalidation; dual gate only on an exact match** (accepted, DEC-090) | In-place mutation; restart on change | Medium |
+| ADR-023 | Deployment and local execution | **Containers for PostgreSQL 16 and Redis 7.2 only; apps on the host; no CI; evidence by scenario** (accepted, DEC-091) | Everything containerized; native installs | High |
+| ADR-024 | Authentication and authorization | **Anonymous shortener with client identity; three control-plane credentials; string approver identity** (accepted, DEC-092) | API keys; OAuth; isolated sessions (backlog) | Medium |
+| ADR-025 | Analytics capture and consistency | **Synchronous fail-open capture, no analytics-specific time bound** (revised, awaiting re-approval, DEC-097) | Async capture; Redis counters | High |
+| ADR-026 | Idempotency architecture | **PostgreSQL state machine with atomic check-and-commit** (accepted, DEC-093) | Unique constraint only; Redis-authoritative | Medium |
+| ADR-027 | URL validation and destination policy | **Syntactic validation, no DNS resolution** (accepted, DEC-094) | DNS resolution at creation; reputation checks | High |
+
+**ADR status** (authoritative list in [docs/adr/README.md](../../docs/adr/README.md)): ADR-001, 002, 004 to 013, 015 to 024, 026, and 027 are **Accepted** (DEC-071 to DEC-094). **ADR-003** (single application role per plane, DEC-095), **ADR-014** (a mandatory FAIL always blocks; an exception can only produce a CONDITIONAL_PASS, DEC-096), and **ADR-025** (no analytics-specific bound, DEC-097) were rejected as first proposed and have been revised; they remain Proposed until re-approved.
 
 ## 4. Constitution Check
 
@@ -212,7 +227,7 @@ Gate: must pass before research and be re-checked after design (Governance, "Com
 
 | Principle | Pre-research | Post-design | Justification |
 |-----------|--------------|-------------|---------------|
-| I Specification before implementation | PASS | PASS | Spec v1.11 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
+| I Specification before implementation | PASS | PASS | Spec v1.12 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
 | II Explicit agentic orchestration | PASS | PASS | Explicit graph, 15 node states, sequential and parallel paths, joins, conditional skip, suspension, replanning, interruption, resumption; every node defines inputs, outputs, criteria, owner, failure behavior |
 | III Human governance | PASS | PASS | Ten gates; timeout never approves; late responses rejected; separate approver credential (DEC-037) |
 | IV Test-driven engineering | PASS | PASS | Red-green-refactor protocol with recorded red runs, all required test categories, tests-for-every-FR gate. Exceptions to red-first must be recorded, never implied |
@@ -363,7 +378,7 @@ Recorded in the specification's Decision Record. Numbering note: the request nam
 | ID | Decision | Approval | Record |
 |----|----------|----------|--------|
 | PD-01 | Scenario provenance: core shortener first (labelled not orchestrator-run); Scenario A governs the analytics increment; retroactive governance rejected | Approved | DEC-059 |
-| PD-02 | Technology stack: **TypeScript on Node.js 20+, Fastify, PostgreSQL, Redis, Vitest with Supertest**; ADRs updated | Approved | DEC-060 |
+| PD-02 | Technology stack: **TypeScript on Node.js (tested on 22), Fastify, PostgreSQL 16, Redis 7.2, Vitest with Supertest**; ADRs updated | Approved | DEC-060, DEC-071, DEC-098 |
 | PD-03 | Shared identity behind one IP-address hash accepted as a disclosed limitation, **LIM-004** (hardening deferred to BL-05) | Approved | DEC-061 |
 | PD-04 | A lease-expired request whose commit is aborted receives `503` with reason `request_superseded` and `Retry-After`; no mapping; retry-safe | Approved; retry guidance confirmed (DEC-068) | DEC-062 |
 | PD-05 | Plan assumptions PA-001 to PA-010 as written | Approved | DEC-063 |

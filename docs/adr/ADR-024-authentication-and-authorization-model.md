@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The component decisions were approved (DEC-010 anonymous creation, DEC-049 creator-only count reads, DEC-053 and DEC-057 client identity, DEC-037 and DEC-018 control-plane roles, DEC-061 LIM-004). This ADR consolidates them and awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-092. Clarification: the approver identity is a simple string identifier.
 
 ## Context
 
@@ -38,7 +38,7 @@ Use **option A**.
 | Control plane | Bearer credential, hashed at rest | APPROVER (create runs, decide gates), AGENT (claim, submit, propose), READER (read only); a role mismatch is denied and audited |
 | Operational endpoints | Loopback binding | `/metrics`, documentation pages disabled by default |
 
-The raw IP address is never stored; the IP-hash is an HMAC with a server secret. A token binds to the identity established at first contact (DEC-057). Transport security is not provided on loopback (trade-off T-1).
+The approver identity is a simple string identifier (for example `human-candidate`) bound to the approver credential (DEC-101). The raw IP address is never stored; the IP-hash is an HMAC with a server secret. A token binds to the identity established at first contact (DEC-057). Transport security is not provided on loopback (trade-off T-1).
 
 ## Rationale
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The behavior was approved across DEC-009, DEC-016, DEC-021, DEC-023, DEC-025, DEC-026, DEC-029 to DEC-034, DEC-062, DEC-067, and DEC-068. This ADR records the architecture and awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-093.
 
 ## Context
 

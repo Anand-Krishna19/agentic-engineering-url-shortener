@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The behavior (count and timestamp only, fail-open with logging and auditing, aggregate kept for the life of the link, per-event rows purged at 30 days, creator-only reads) was approved (DEC-007, DEC-049, DEC-055, ASM-016). The capture mechanism and its timing bound below are planner design; the timeout value is a new proposal that needs approval.
+**Proposed (revised 2026-10-16, awaiting re-approval).** The behavior (count and timestamp only, fail-open with logging and auditing, aggregate kept for the life of the link, per-event rows purged at 30 days, creator-only reads) was approved (DEC-007, DEC-049, DEC-055, ASM-016). The first version proposed a 250 ms bound on capture, which the human **rejected** because no such bound was approved (DEC-097). This revision removes it.
 
 ## Context
 
@@ -14,10 +14,10 @@ Count accuracy; availability (fail-open); auditable failure; latency; simplicity
 
 ## Options Considered
 
-**A. Synchronous bounded capture in the redirect request: after the redirect decision, a short transaction increments the aggregate counter and inserts the event; failure or timeout is caught, logged, audited, and the redirect proceeds.**
+**A. Synchronous fail-open capture in the redirect request: after the redirect decision, a short transaction increments the aggregate counter and inserts the event; any failure is caught, logged, audited, and the redirect proceeds. No analytics-specific time bound is imposed.**
 - Advantages: counts equal successful redirects when capture succeeds; every failure is recorded; simple.
-- Disadvantages: adds a database round trip to the redirect path; a hot link serializes on one counter row.
-- Risks: contention on popular links; a slow database could delay redirects up to the timeout.
+- Disadvantages: adds a database round trip to the redirect path; a hot link serializes on one counter row; with no analytics-specific bound, a hanging database call is limited only by the general approved persistence timeout (PVT-010).
+- Risks: contention on popular links; a slow database could delay a redirect up to the general persistence timeout.
 - Impact: counter and event tables, capture wrapper with a timeout.
 - Assessment: easy to demonstrate and test.
 
@@ -29,7 +29,7 @@ Count accuracy; availability (fail-open); auditable failure; latency; simplicity
 
 ## Decision
 
-Use **option A**. Redirect resolution reads the link, decides, then attempts capture within a **bounded time (proposal: 250 ms, to be approved; labelled assumption PA-015)**; on failure or timeout it logs, increments a failure metric, writes an application audit event, and still returns the redirect. Only successful redirects are captured (never 404, 410, or failed resolutions). The aggregate counter and the event row commit in one transaction. The aggregate count is a lower bound whenever captures fail, and the failures are visible in the audit record. Per-event rows older than 30 days are purged by the reaper; the counter is never reduced. Reads go through the creator-only endpoint (ADR-024). Whether HEAD requests count is an open question deliberately seeded in Scenario A.
+Use **option A**. Redirect resolution reads the link, decides, then attempts capture; on any failure it logs, increments a failure metric, writes an application audit event, and still returns the redirect. **No analytics-specific time bound is added** (DEC-097): the approved general persistence attempt timeout (PVT-010) still applies to every database call, and, so that a failing capture does not multiply delay, the capture makes a **single attempt with no retries** (an authoring clarification, listed for confirmation in the decision record). If performance testing shows capture delaying redirects, a bound will be proposed then. Only successful redirects are captured (never 404, 410, or failed resolutions), and, per the human's statement (DEC-104), only `GET` requests count. The aggregate counter and the event row commit in one transaction. The aggregate count is a lower bound whenever captures fail, and the failures are visible in the audit record. Per-event rows older than 30 days are purged by the reaper; the counter is never reduced. Reads go through the creator-only endpoint (ADR-024). Whether HEAD requests count was stated by the human as no (only `GET` triggers analytics, DEC-104); the Scenario A run still presents the question at its clarification gate for a decision at run time.
 
 ## Rationale
 
@@ -38,7 +38,7 @@ It meets the approved fail-open and auditing requirements with the least machine
 ## Consequences
 
 - Positive: accurate counts; auditable failures; no visitor data stored.
-- Negative: capture adds latency to the redirect path; hot-link row contention possible; counts are a lower bound under failures.
+- Negative: capture adds latency to the redirect path, bounded only by the general persistence timeout; hot-link row contention possible; counts are a lower bound under failures.
 - Operational: failure and capture-latency metrics; purge job metrics.
 - Testing: N redirects give count N including under concurrency (PVT-015); capture failure leaves the redirect intact with log and audit records; purge leaves the aggregate unchanged; non-owner read gets the unknown-code response; contention measured and labelled demonstration.
 - Governance: POL-PRV-001 checks stored fields against the approved list.
@@ -46,7 +46,7 @@ It meets the approved fail-open and auditing requirements with the least machine
 ## Risks and Mitigations
 
 - Hot-row contention: measured; sharded counters (option D) if needed (a change request).
-- Timeout choice: proposal pending approval.
+- Redirect delay from a slow database: no analytics bound by decision; mitigated only by the general persistence timeout and a single capture attempt; measured in performance testing, and a bound is proposed only if testing shows a problem.
 
 ## Reversibility
 
@@ -54,7 +54,7 @@ High.
 
 ## Traceability
 
-- Requirements: FR-012 to FR-014, FR-017, FR-023, PVT-001, PVT-015, DEC-007, DEC-049, DEC-055, ASM-016.
+- Requirements: FR-012 to FR-014, FR-017, FR-023, PVT-001, PVT-015, PVT-010, DEC-007, DEC-049, DEC-055, DEC-097, DEC-104, ASM-016.
 - Specification: Analytics; Concurrency.
 - Plan: scenarios/scenario-a-greenfield.md; data-model.md (`redirect_counters`, `redirect_events`); security.md AB-08.
 - Tasks: not yet generated; expected Scenario A branches `capture`, `inspect`, `retention`.

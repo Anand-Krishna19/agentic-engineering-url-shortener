@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Requires explicit approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-075.
 
 ## Context
 

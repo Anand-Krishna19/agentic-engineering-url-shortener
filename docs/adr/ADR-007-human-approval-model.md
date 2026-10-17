@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The principle (separate credential, authenticated identity in the audit record) was approved by the human (DEC-037, Option A). The mechanism and gate semantics below require approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-076. Clarification: the approver identity is a simple string identifier.
 
 ## Context
 
@@ -30,7 +30,7 @@ Testable human-approval proof; least privilege; content binding; clear timeout s
 
 ## Decision
 
-Use **option A**. Ten gates (G-AMB, G-ARCH, G-CODE, G-SEC, G-DESTR, G-EXC, G-RISK, G-REL, G-FINAL, G-CHG) accept decisions **only with the approver credential**. Each decision carries the authenticated approver identity, a role string, a reason, and the **subject hash** of the content reviewed; a stale hash is rejected (`approval_subject_changed`). Gate timeouts: 24 hours logical, one escalation (record the escalation and extend once, since there is no second approver), 24 hours logical, then safe-stop; tests simulate the durations and label them (DEC-044). A late response after safe-stop is rejected as `late_response_after_safe_stop` (DEC-041). Repeated identical decisions are idempotent. An agent worker refuses to start if the approver credential is in its environment.
+Use **option A**. Ten gates (G-AMB, G-ARCH, G-CODE, G-SEC, G-DESTR, G-EXC, G-RISK, G-REL, G-FINAL, G-CHG) accept decisions **only with the approver credential**. Each decision carries the approver identity (a simple string identifier such as `human-candidate`, configured at `orch init` and bound to the approver credential, with no further authentication system for the prototype, DEC-101), a role string, a reason, and the **subject hash** of the content reviewed; a stale hash is rejected (`approval_subject_changed`). Gate timeouts: 24 hours logical, one escalation (record the escalation and extend once, since there is no second approver), 24 hours logical, then safe-stop; tests simulate the durations and label them (DEC-044). A late response after safe-stop is rejected as `late_response_after_safe_stop` (DEC-041). Repeated identical decisions are idempotent. An agent worker refuses to start if the approver credential is in its environment.
 
 ## Rationale
 

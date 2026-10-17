@@ -1,10 +1,10 @@
 # Research and Technology Decisions: Agentic SDLC Orchestration and URL Shortener
 
-**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.11 | **Plan**: [plan.md](plan.md) | **Date**: 2026-10-16
+**Feature**: `001-agentic-sdlc-url-shortener` | **Spec**: [spec.md](spec.md) v1.12 | **Plan**: [plan.md](plan.md) | **Date**: 2026-10-16
 
 **Approval status.** On 2026-10-16 the human candidate approved the technology stack (DEC-060): **TypeScript on Node.js 20 or later, Fastify, PostgreSQL, Redis, Vitest with Supertest**. The planner had proposed Python with FastAPI and SQLite; that proposal is **superseded** and kept below only as the alternative that was evaluated. The approved stack is recorded in each ADR. The **sub-selections** (the libraries around the stack, the PostgreSQL and Redis role boundary, and Redis-down behavior) were **confirmed on 2026-10-16** (DEC-067, DEC-070), with one amendment: Redis-down rate limiting uses PostgreSQL-based checks, not in-process buckets (DEC-067). On approval each ADR becomes an Architecture Decision Record in the ADR stage; the identifiers are stable.
 
-**ADR documents.** The full Architecture Decision Records (ADR-001 to ADR-027, status Proposed) are in [`docs/adr/`](../../docs/adr/README.md). They are the governing records once the human accepts them; this document is the evaluation summary and background. If the two ever differ, `docs/adr/` is the intended source.
+**ADR documents.** The full Architecture Decision Records (ADR-001 to ADR-027, status Proposed) are in [`docs/adr/`](../../docs/adr/README.md). They are the governing records once the human accepts them; this document is the evaluation summary and background. **`docs/adr/` is the authoritative source for ADRs (DEC-106).** This document is background; if the two ever differ, the ADRs govern.
 
 ## 0. Unknowns Resolved
 
@@ -18,7 +18,7 @@ Executed on the candidate's machine on 2026-10-16 in throwaway directories outsi
 
 | Check | Result |
 |-------|--------|
-| Runtime | Node.js 24.22.0, npm 11.19.1 (the approved floor is Node 20; the installed version satisfies it) |
+| Runtime | Node.js 24.22.0, npm 11.19.1 (the approved range is "Node 20 or later", tested on Node 22, DEC-071; Node 22 is not installed here, the installed 24.22.0 satisfies the range) |
 | Packages installed in one command (492 packages, 24 s) | fastify 5.12.7, typescript 6.0.3, vitest 5.0.5, supertest 7.3.1, pg 8.23.1, ioredis 6.0.0, ajv 8.20.0, prom-client 15.1.3, pino 10.4.0, fast-check 4.10.2, uuid 14.0.3, node-pg-migrate 9.0.0, plus eslint, typescript-eslint, `@vitest/coverage-v8`, commander, yaml, ajv-formats, `@apidevtools/swagger-parser`, license-checker-rseidelsohn, secretlint |
 | Contract validation under the stack's own tooling | After one fix, **23 of 23 checks passed**: both OpenAPI 3.1 documents validate with swagger-parser (including relative file references), all nine schemas compile under Ajv 2020 in **strict mode**, all examples and the policy catalogue validate, and four negative controls are rejected |
 | Defect found by this spike | Ajv strict mode rejected nested conditional schemas without `"type": "object"` in `change-record.schema.json` (the Python validator used earlier was too lenient to notice). Fixed; this matters because Fastify validates with Ajv |
@@ -61,7 +61,7 @@ The earlier Python spike (Python 3.15.0 with FastAPI 0.143.3, Pydantic 2.14.1, S
 |-------|---------|
 | Decision question | Which language and runtime for both planes? |
 | Options | **A** TypeScript on Node.js 20+ (selected by the human). **B** Python 3.13+ (the planner's earlier proposal, superseded). **C** Java 27 (JDK present, no build tool). **D** Go or .NET (not installed). |
-| **Selected (DEC-060)** | **A: TypeScript (strict mode) on Node.js 20 or later**, developed on the installed Node 24.22.0, npm with a committed lock file, ES modules, compiled with `tsc`. |
+| **Selected (DEC-060)** | **A: TypeScript (strict mode) on Node.js, "20 or later" supported and tested on Node 22 (DEC-071)**, with the installed Node 24.22.0 also usable, npm with a committed lock file, ES modules, compiled with `tsc`. |
 | Rationale given | Stated by the human: a production-grade, testable prototype. Planner's supporting observations: Fastify validates requests directly from JSON Schema, which removes most contract drift (the main weakness of the earlier Python proposal); Ajv, `swagger-parser`, and `fast-check` cover contract and property testing; Node and npm are already installed. |
 | Consequences | The contract schemas can be loaded at runtime by the framework (single source of truth). Types are erased at runtime, so runtime validation stays essential. Dependencies are more numerous in the Node ecosystem, which raises supply-chain attention (ADR-012). No built-in `uuid` v7; a small package is needed (PA-013). |
 | Risks | R-01: dependency and toolchain churn (TypeScript 6 and Vitest 5 are recent major versions); mitigated by the lock file and CP-1. R-02 from the earlier plan (contract drift) is largely retired. |
@@ -258,4 +258,4 @@ The earlier Python spike (Python 3.15.0 with FastAPI 0.143.3, Pydantic 2.14.1, S
 | PA-012 | Package management with npm and a committed `package-lock.json`, `npm ci` for reproducible installs, ES modules, `engines.node >= 20`, strict TypeScript | ADR-001 |
 | PA-013 | Libraries around the approved stack: `pg`, `node-pg-migrate`, `ioredis`, `pino`, `prom-client`, `commander` (CLI), `uuid` (v7), `ajv`, `ajv-formats`, `@apidevtools/swagger-parser`, `fast-check`, `secretlint`, `license-checker-rseidelsohn`, ESLint with `typescript-eslint`, `@vitest/coverage-v8` | ADR-001 to ADR-012 |
 | PA-014 | Local PostgreSQL and Redis run in containers defined by one Compose file; tests use one database per Vitest worker (created from a template) and a distinct Redis key prefix per test; secrets for the local containers are generated by `orch init`, not committed. Container use is a local-development convenience, not a deployment platform (EXC-002 stands) | ADR-003, ADR-015 |
-| PA-015 (proposed, ADR-025; not yet approved) | Analytics capture is attempted within a 250 ms bound; on failure or timeout the redirect proceeds and the failure is logged and audited | FR-012, FR-014, PVT-001 |
+| PA-015 | **Withdrawn (DEC-097).** The proposed 250 ms analytics-capture bound was rejected as never approved; analytics capture has no analytics-specific time bound | FR-012, FR-014 |

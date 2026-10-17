@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The properties (CSPRNG, base62, at least 7 characters, case-sensitive) were approved as an assumption (ASM-015, DEC-051); the collision strategy and classification are plan detail (PA-008, approved by DEC-063). This ADR text awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-085.
 
 ## Context
 

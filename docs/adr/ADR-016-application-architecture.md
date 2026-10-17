@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Not yet explicitly approved as a standalone decision; requires approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-084.
 
 ## Context
 

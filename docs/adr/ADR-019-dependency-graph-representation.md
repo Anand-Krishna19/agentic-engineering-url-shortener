@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Requires explicit approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-087. Clarification: the profile format is JSON.
 
 ## Context
 
@@ -27,7 +27,7 @@ Inspectability; testability of ordering; precise granularity for "affected path"
 
 ## Decision
 
-Use **option A**. A profile defines 19 node types, `DEPENDS_ON`, `CONDITIONAL`, and `GATE` edges, and the 10 gates. The decomposition node declares branches; the engine instantiates the branch-scoped nodes (N08 to N11) once per branch with unique key `(run_id, plan_version, node_key, branch)` and keeps run-level nodes single (N12 to N19, N14). Edge conditions are **named predicates** (`has_material_ambiguity`, `no_impacted_components`, `security_sensitive_change`, `has_destructive_effect`, `has_residual_risk`, and others), never free-form code. Plan versions are immutable; each stores its edges.
+Use **option A**, with the profile stored as a **JSON file** (`sdlc/1`, DEC-102) validated by a JSON Schema authored as a contract in slice S4 and covered by the change-record process. A profile defines 19 node types, `DEPENDS_ON`, `CONDITIONAL`, and `GATE` edges, and the 10 gates. The decomposition node declares branches; the engine instantiates the branch-scoped nodes (N08 to N11) once per branch with unique key `(run_id, plan_version, node_key, branch)` and keeps run-level nodes single (N12 to N19, N14). Edge conditions are **named predicates** (`has_material_ambiguity`, `no_impacted_components`, `security_sensitive_change`, `has_destructive_effect`, `has_residual_risk`, and others), never free-form code. Plan versions are immutable; each stores its edges.
 
 ## Rationale
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The scheme allow-list, length, and normalization were approved (DEC-008), and PA-006 and PA-007 were approved (DEC-063). The destination policy and the decision not to resolve DNS are planner design and need approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-094.
 
 ## Context
 

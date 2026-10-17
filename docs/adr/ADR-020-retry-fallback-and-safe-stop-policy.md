@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The approved numbers (PVT-009, PVT-010, PVT-011), the safe-stop semantics (DEC-045, DEC-050), and the assumptions PA-002 and PA-003 were approved; this ADR consolidates them into one policy and awaits approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-088.
 
 ## Context
 

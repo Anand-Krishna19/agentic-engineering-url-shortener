@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The principle (simulated timeouts labelled as such) was approved (DEC-044). The mechanism requires approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-079.
 
 ## Context
 

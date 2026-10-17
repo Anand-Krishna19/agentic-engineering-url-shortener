@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** Fastify was explicitly approved by the human (DEC-060). The configuration requirements and drift controls below are planner additions awaiting approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-072.
 
 ## Context
 

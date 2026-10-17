@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed.** The scenario designs that rely on it were approved (DEC-066); the mechanism and the "one approval serving two gates" reading require approval.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-090. Clarification: the dual-gate reading applies only when the clarification exactly matches the change request.
 
 ## Context
 
@@ -29,7 +29,7 @@ Precision (re-run only what changed); governance preservation; immutable history
 
 ## Decision
 
-Use **option A**. Triggers: a new version of a consumed artifact slice, a G-AMB answer, an approved change (G-CHG), or a rejection at a gate. Algorithm: compute the affected set from slice hashes, classify materiality by the changed artifact's kind, supersede approvals whose subject hash changed for material changes only, create plan version n+1 carrying over unaffected succeeded instances, mark affected old instances STALE and create fresh PENDING ones, evaluate policy at `ON_REPLAN`, and open G-CHG for material changes. Reading of FR-126 used in Scenarios A and B: when the change is exactly the clarified statement, the G-AMB approval doubles as the G-CHG approval, with the impact analysis shown before the human answers.
+Use **option A**. Triggers: a new version of a consumed artifact slice, a G-AMB answer, an approved change (G-CHG), or a rejection at a gate. Algorithm: compute the affected set from slice hashes, classify materiality by the changed artifact's kind, supersede approvals whose subject hash changed for material changes only, create plan version n+1 carrying over unaffected succeeded instances, mark affected old instances STALE and create fresh PENDING ones, evaluate policy at `ON_REPLAN`, and open G-CHG for material changes. Reading of FR-126 used in Scenarios A and B (approved with this constraint, DEC-090): the G-AMB approval doubles as the G-CHG approval **only when the clarification exactly matches the change request**, meaning the change set the answer produces (the same artifact slices and content hashes) equals the change set of the change request, and the impact analysis was shown before the human answered. Any difference (extra or different slices, additional changes) opens a separate G-CHG.
 
 ## Rationale
 
@@ -41,7 +41,7 @@ It is the only option that satisfies re-run-only-affected, preserves lineage, an
 - Negative: slice design effort; more records.
 - Operational: replan events carry the affected set and both plan versions.
 - Testing: the executed set after a replan equals the computed affected set; approvals on unchanged content stay valid and on materially changed content are superseded; governance is not bypassed.
-- Governance: replans of material changes require G-CHG; the double-gate reading needs confirmation.
+- Governance: replans of material changes require G-CHG; the double-gate reading is limited to an exact match, and a divergence always opens a separate G-CHG.
 
 ## Risks and Mitigations
 
@@ -61,4 +61,4 @@ Medium.
 
 ## Validation
 
-TS-REPLAN tests; Scenario A HEAD-request clarification demonstration; Scenario C resume at normalization.
+TS-REPLAN tests, including a test that an answer differing in any slice from the change request does not double as G-CHG; Scenario A HEAD-request clarification demonstration; Scenario C resume at normalization.
