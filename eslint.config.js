@@ -27,6 +27,24 @@ export default tseslint.config(
       { group: ['**/orchestrator/**', '**/shortener/**'], message: 'Planes share no domain code (ADR-016).' },
     ]),
   },
+  // ADR-010: only the wall-clock adapter may read the clock; everything else takes a Clock.
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['src/kernel/clock/clock.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: 'Use the injected Clock port, not new Date() (ADR-010).',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'Use the injected Clock port, not Date.now() (ADR-010).',
+        },
+      ],
+    },
+  },
   {
     files: ['src/kernel/**/*.ts'],
     rules: restrict([

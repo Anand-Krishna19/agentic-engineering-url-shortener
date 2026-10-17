@@ -20,6 +20,7 @@ Requires Node.js 20 or later (ADR-001).
 | T005 | Done | `tests/unit/types/types.test.ts` (red: modules missing; then 15 passed). Drift tests compare every exported vocabulary with `workflow-state.schema.json`, `audit-event.schema.json` and the T003 CHECK constraints. Mutation check: adding a bogus status failed 3 tests. IN_PROGRESS/COMPLETED/FAILED are idempotency states and are defined with T008, not here (tasks.md correction 2026-10-18). |
 | T006 | Done | `tests/unit/url/validator.test.ts` (red: module missing; then 125 passed). Mutation checks: removing the userinfo rule failed 6 tests; removing the 100.64.0.0/10 range failed 2. Full suite 181 passed; lint and typecheck clean. |
 | T007 | Done | `tests/unit/code/generator.test.ts` (13) and `tests/persistence/code/repository.test.ts` (8, real postgres:16.2-alpine as shortener_app). Red: modules missing. Mutation checks: allowing a 4th attempt failed 3 tests; removing ON CONFLICT failed 6. Full suite 202 passed; lint and typecheck clean. |
+| T010 | Done | `tests/unit/clock` (8), `tests/unit/expiry` (49), `tests/unit/analytics` (22) tests; red: `clock.ts` missing, all three files failed. Mutation checks: lower-bound `>` to `>=` failed 2; `now >= expires_at` to `>` failed 3; counting HEAD failed 5. Full suite 289 passed; lint and typecheck clean. |
 
 ## Local dependencies (T002)
 
@@ -48,3 +49,13 @@ Interpretation notes: `scheme:` URLs without `//` (for example `https:example.co
 `src/shortener/domain/code/generator.ts`: `generateShortCode` (7 characters, base62, `node:crypto` `randomInt`), `isShortCode`, and `insertWithUniqueCode`, which retries a collision with a fresh code up to 3 attempts and then throws `CodeGenerationExhaustedError` (`transient: true`). The creation handler (T008) must map that error to HTTP 503 with reason `persistence_unavailable` and must not write a FAILED idempotency record (PA-008, DEC-033).
 
 `src/shortener/adapters/persistence/short-link-repository.ts` (not in T007 Files column; needed by its persistence test) inserts with `ON CONFLICT (short_code) DO NOTHING`, so a collision neither throws nor aborts an enclosing transaction. The unique index and the binary collation come from T003. Persistence tests need Docker; they start a throwaway container.
+
+## Expiry, Clock port and analytics (T010)
+
+`src/kernel/clock/clock.ts`: `Clock` port, `WallClock` (the only place allowed to read the wall clock) and `SimulatedClock`. ESLint (`no-restricted-syntax` in `eslint.config.js`) rejects `Date.now()` and `new Date()` with no arguments everywhere else under `src/` (ADR-010).
+
+`src/shortener/domain/expiry/checker.ts`: `canonicalizeExpiry` is clock-independent (omitted is the sentinel `ABSENT`; a supplied value must be absolute RFC 3339 with an offset and is converted to a UTC canonical string; more than six fractional digits is rejected, PA-010). `validateExpiryRange` enforces `now < expires_at <= now + 365 days` to the microsecond. `resolveExpiry` computes the 30-day default only when called, from the Clock. `isExpired` is the single rule `now >= expires_at`.
+
+`src/shortener/domain/analytics/capture.ts`: `captureRedirect` records the short code and the Clock timestamp only, for GET requests only, in a single attempt bounded by 10 s (PVT-010), and never throws (fail-open). The failure reporter receives the code and a reason (`error` or `timeout`), never error text. The store adapter (counter plus event in one transaction) arrives with T009.
+
+Interpretation notes: every malformed `expires_at` (not a string, not RFC 3339, no offset, impossible date, leap second) is `malformed_request`, extending PA-010; out of range is `expiry_out_of_range`. T008 must call `canonicalizeExpiry` for the signature, `validateExpiryRange` before any idempotency record exists, and `resolveExpiry` only after a signature match. Expiry values read back from PostgreSQL as a JavaScript `Date` lose sub-millisecond digits, so `isExpired` can differ from the exact microsecond by under 1 ms.
