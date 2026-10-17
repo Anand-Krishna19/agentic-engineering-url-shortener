@@ -44,6 +44,15 @@ describe('T002 docker-compose', () => {
     expect(readFileSync('.gitignore', 'utf8')).toMatch(/^\.env$/m);
   });
 
+  it('[DEC-095] role passwords for the init scripts come from the environment', () => {
+    const c = compose();
+    expect(c).toMatch(/SHORTENER_APP_PASSWORD:\s*\$\{SHORTENER_APP_PASSWORD:\?/);
+    expect(c).toMatch(/ORCHESTRATOR_APP_PASSWORD:\s*\$\{ORCHESTRATOR_APP_PASSWORD:\?/);
+    const env = readFileSync('.env.example', 'utf8');
+    expect(env).toContain('SHORTENER_APP_PASSWORD=');
+    expect(env).toContain('ORCHESTRATOR_APP_PASSWORD=');
+  });
+
   it('[ADR-003] init scripts directory is mounted read-only', () => {
     expect(existsSync('docker/init-db')).toBe(true);
     expect(compose()).toContain('./docker/init-db:/docker-entrypoint-initdb.d:ro');
