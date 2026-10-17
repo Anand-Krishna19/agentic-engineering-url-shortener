@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed (revised 2026-10-16, awaiting re-approval).** The first version of this ADR was **rejected** by the human candidate (DEC-096): it let an approved exception "satisfy" a mandatory FAIL, which weakens the governance model. The catalogue approach, the draft catalogue v1.0, and the non-waivable set remain approved (DEC-048, DEC-064). This revision replaces the readiness reading.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-108, after the first version was rejected (DEC-096). A mandatory FAIL always blocks; CONDITIONAL-PASS is a derived readiness disposition, not a fifth policy outcome, so the constitution's four outcomes are preserved and no amendment is needed (human confirmation).
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Proposed (revised 2026-10-16, awaiting re-approval).** The behavior (count and timestamp only, fail-open with logging and auditing, aggregate kept for the life of the link, per-event rows purged at 30 days, creator-only reads) was approved (DEC-007, DEC-049, DEC-055, ASM-016). The first version proposed a 250 ms bound on capture, which the human **rejected** because no such bound was approved (DEC-097). This revision removes it.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-109, after the first version was rejected (DEC-097). Capture is a single attempt with no retries, fail-open, bounded only by the approved persistence timeout (PVT-010).
 
 ## Context
 
@@ -29,7 +29,7 @@ Count accuracy; availability (fail-open); auditable failure; latency; simplicity
 
 ## Decision
 
-Use **option A**. Redirect resolution reads the link, decides, then attempts capture; on any failure it logs, increments a failure metric, writes an application audit event, and still returns the redirect. **No analytics-specific time bound is added** (DEC-097): the approved general persistence attempt timeout (PVT-010) still applies to every database call, and, so that a failing capture does not multiply delay, the capture makes a **single attempt with no retries** (an authoring clarification, listed for confirmation in the decision record). If performance testing shows capture delaying redirects, a bound will be proposed then. Only successful redirects are captured (never 404, 410, or failed resolutions), and, per the human's statement (DEC-104), only `GET` requests count. The aggregate counter and the event row commit in one transaction. The aggregate count is a lower bound whenever captures fail, and the failures are visible in the audit record. Per-event rows older than 30 days are purged by the reaper; the counter is never reduced. Reads go through the creator-only endpoint (ADR-024). Whether HEAD requests count was stated by the human as no (only `GET` triggers analytics, DEC-104); the Scenario A run still presents the question at its clarification gate for a decision at run time.
+Use **option A**. Redirect resolution reads the link, decides, then attempts capture; on any failure it logs, increments a failure metric, writes an application audit event, and still returns the redirect. **No analytics-specific time bound is added** (DEC-097): the approved general persistence attempt timeout (PVT-010) still applies to every database call, and, so that a failing capture does not multiply delay, the capture makes a **single attempt with no retries** (approved, DEC-109). If performance testing shows capture delaying redirects, a bound will be proposed then. Only successful redirects are captured (never 404, 410, or failed resolutions), and, per the human's statement (DEC-104), only `GET` requests count. The aggregate counter and the event row commit in one transaction. The aggregate count is a lower bound whenever captures fail, and the failures are visible in the audit record. Per-event rows older than 30 days are purged by the reaper; the counter is never reduced. Reads go through the creator-only endpoint (ADR-024). Whether HEAD requests count was stated by the human as no (only `GET` triggers analytics, DEC-104); the Scenario A run still presents the question at its clarification gate for a decision at run time.
 
 ## Rationale
 

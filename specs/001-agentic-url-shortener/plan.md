@@ -1,6 +1,6 @@
 # Implementation Plan: Agentic SDLC Orchestration and URL Shortener
 
-**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.12)
+**Branch**: `001-agentic-sdlc-url-shortener` | **Date**: 2026-10-16 | **Spec**: [spec.md](spec.md) (Approved v1.13)
 
 **Input**: Feature specification from `specs/001-agentic-sdlc-url-shortener/spec.md`
 
@@ -20,7 +20,7 @@ Approach: the **approved stack** (DEC-060): **TypeScript on Node.js 20+, Fastify
 | Document | Content |
 |----------|---------|
 | [research.md](research.md) | Technology evaluation summary and feasibility evidence, plan assumptions PA-001 to PA-014 (background; the ADRs govern) |
-| [docs/adr/](../../docs/adr/README.md) | **Architecture Decision Records ADR-001 to ADR-027: the authoritative source for decisions (DEC-106).** 24 Accepted (DEC-071 to DEC-094); ADR-003, ADR-014, and ADR-025 revised and awaiting re-approval |
+| [docs/adr/](../../docs/adr/README.md) | **Architecture Decision Records ADR-001 to ADR-027: the authoritative source for decisions (DEC-106).** all 27 Accepted (DEC-071 to DEC-094, DEC-107 to DEC-109) |
 | [data-model.md](data-model.md) | Persistence schemas for both planes, canonicalization rules, state machines, open design decisions OD-01 and OD-02 |
 | [contracts/](contracts/README.md) | OpenAPI contracts for both planes, JSON Schemas, examples, policy catalogue draft, compatibility and change-control rules |
 | [orchestration-model.md](orchestration-model.md) | Graph, node states, gates, replanning, recovery, compensation, agent contract, per-node definitions |
@@ -35,11 +35,11 @@ Approach: the **approved stack** (DEC-060): **TypeScript on Node.js 20+, Fastify
 
 ## Technical Context
 
-**Language/Version**: TypeScript (strict), declared compatible with Node.js 20 or later, **tested on Node 22 (LTS)** (DEC-071; Node 22 is not installed here, the installed version is 24.22.0, so provisioning Node 22 is a CP-1 task); npm with a committed lock file; ES modules. *Approved, DEC-060, DEC-071, ADR-001.*
+**Language/Version**: TypeScript (strict), declared compatible with Node.js 20 or later and **tested on Node 24** (the installed 24.22.0; DEC-071 as amended by the human's later confirmation: Node 20 and 22 are supported but not tested); npm with a committed lock file; ES modules. *Approved, DEC-060, DEC-071, ADR-001.*
 
 **Primary Dependencies**: Fastify 5 (approved). Companions (confirmed, DEC-070, PA-013): `pg`, `node-pg-migrate`, `ioredis`, `pino`, `prom-client`, `commander`, `uuid` (v7), `ajv` and `ajv-formats`, `@apidevtools/swagger-parser`; test and quality: Vitest and Supertest (approved), `fast-check`, `@vitest/coverage-v8`, ESLint with `typescript-eslint`, `tsc` strict; scans: `npm audit`, `secretlint`, `license-checker-rseidelsohn`. Installed together in a feasibility spike on Node 24.22.0 (research.md section 1.1).
 
-**Storage**: PostgreSQL (approved), two databases (`shortener`, `orchestrator`) with one least-privilege role per plane, no ORM, numbered SQL migrations. Redis (approved) for rate limiting, the replay cache, and the advisory in-flight lock in the application plane only; PostgreSQL stays authoritative (ADR-015). *Not yet run on this machine: Docker was not running at the time of the check. Starting Docker and verifying PostgreSQL and Redis is a mandatory precondition for implementation (CP-1, DEC-069). With Redis down the service runs in PostgreSQL-only mode (DEC-067).*
+**Storage**: PostgreSQL (approved), two databases (`urlshortener`, `orchestrator`) with one least-privilege role per plane, no ORM, numbered SQL migrations. Redis (approved) for rate limiting, the replay cache, and the advisory in-flight lock in the application plane only; PostgreSQL stays authoritative (ADR-015). *Not yet run on this machine: Docker was not running at the time of the check. Starting Docker and verifying PostgreSQL and Redis is a mandatory precondition for implementation (CP-1, DEC-069). With Redis down the service runs in PostgreSQL-only mode (DEC-067).*
 
 **Testing**: Vitest with Supertest (approved); `fast-check` for canonicalization properties; requirement tags in test titles; a simulated `Clock` port; fault-injection hooks; a Supertest wrapper that validates every response against the contract. See testing-strategy.md.
 
@@ -191,7 +191,7 @@ Full decision records (question, options, criteria, selection, rationale, conseq
 
 | ADR | Decision question | Proposed selection | Main rejected alternatives | Reversibility |
 |-----|-------------------|--------------------|----------------------------|---------------|
-| ADR-001 | Language and runtime | **TypeScript on Node.js, "20 or later" supported, tested on Node 22** (approved) | Python 3.13+ (the planner's earlier proposal, superseded); Java 27 without a build tool; Go and .NET not installed | Medium |
+| ADR-001 | Language and runtime | **TypeScript on Node.js, "20 or later" supported, tested on Node 24** (accepted) | Python 3.13+ (the planner's earlier proposal, superseded); Java 27 without a build tool; Go and .NET not installed | Medium |
 | ADR-002 | Web framework | **Fastify 5** (approved), contract-first, Ajv set to reject (not strip or coerce) | Express, NestJS, Hono | High |
 | ADR-003 | Persistence | **PostgreSQL** (approved): two databases, least-privilege roles, `pg`, no ORM | SQLite (the earlier proposal, superseded), flat files | High (ports) |
 | ADR-004 | Orchestration engine | Small custom in-process engine | LangGraph, Temporal, Airflow or Prefect, BPMN engines | Medium |
@@ -215,11 +215,11 @@ Full decision records (question, options, criteria, selection, rationale, conseq
 | ADR-022 | Dynamic replanning | **Immutable plan versions with slice-level invalidation; dual gate only on an exact match** (accepted, DEC-090) | In-place mutation; restart on change | Medium |
 | ADR-023 | Deployment and local execution | **Containers for PostgreSQL 16 and Redis 7.2 only; apps on the host; no CI; evidence by scenario** (accepted, DEC-091) | Everything containerized; native installs | High |
 | ADR-024 | Authentication and authorization | **Anonymous shortener with client identity; three control-plane credentials; string approver identity** (accepted, DEC-092) | API keys; OAuth; isolated sessions (backlog) | Medium |
-| ADR-025 | Analytics capture and consistency | **Synchronous fail-open capture, no analytics-specific time bound** (revised, awaiting re-approval, DEC-097) | Async capture; Redis counters | High |
+| ADR-025 | Analytics capture and consistency | **Synchronous fail-open capture, no analytics-specific time bound** (accepted, DEC-109) | Async capture; Redis counters | High |
 | ADR-026 | Idempotency architecture | **PostgreSQL state machine with atomic check-and-commit** (accepted, DEC-093) | Unique constraint only; Redis-authoritative | Medium |
 | ADR-027 | URL validation and destination policy | **Syntactic validation, no DNS resolution** (accepted, DEC-094) | DNS resolution at creation; reputation checks | High |
 
-**ADR status** (authoritative list in [docs/adr/README.md](../../docs/adr/README.md)): ADR-001, 002, 004 to 013, 015 to 024, 026, and 027 are **Accepted** (DEC-071 to DEC-094). **ADR-003** (single application role per plane, DEC-095), **ADR-014** (a mandatory FAIL always blocks; an exception can only produce a CONDITIONAL_PASS, DEC-096), and **ADR-025** (no analytics-specific bound, DEC-097) were rejected as first proposed and have been revised; they remain Proposed until re-approved.
+**ADR status** (authoritative list in [docs/adr/README.md](../../docs/adr/README.md)): **all 27 ADRs are Accepted** (DEC-071 to DEC-094, and DEC-107 to DEC-109 for the three that were rejected as first proposed and revised: ADR-003 with a single application role per plane, ADR-014 where a mandatory FAIL always blocks and an exception can only produce a CONDITIONAL_PASS, and ADR-025 with no analytics-specific time bound).
 
 ## 4. Constitution Check
 
@@ -227,7 +227,7 @@ Gate: must pass before research and be re-checked after design (Governance, "Com
 
 | Principle | Pre-research | Post-design | Justification |
 |-----------|--------------|-------------|---------------|
-| I Specification before implementation | PASS | PASS | Spec v1.12 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
+| I Specification before implementation | PASS | PASS | Spec v1.13 is approved with no open ambiguity; the plan adds no requirement; contracts are authored before code; plan-discovered consequences are listed in section 11 for approval, not silently adopted |
 | II Explicit agentic orchestration | PASS | PASS | Explicit graph, 15 node states, sequential and parallel paths, joins, conditional skip, suspension, replanning, interruption, resumption; every node defines inputs, outputs, criteria, owner, failure behavior |
 | III Human governance | PASS | PASS | Ten gates; timeout never approves; late responses rejected; separate approver credential (DEC-037) |
 | IV Test-driven engineering | PASS | PASS | Red-green-refactor protocol with recorded red runs, all required test categories, tests-for-every-FR gate. Exceptions to red-first must be recorded, never implied |
@@ -275,9 +275,9 @@ src/
 policies/                 # policy catalogue (versioned JSON)
 migrations/               # shortener/ and orchestrator/ numbered SQL
 tests/                    # unit, contract, persistence, integration, orchestration, reliability, security, e2e, release
-evidence/                 # generated bundles and reports (never hand-edited)
+evidence/                 # generated bundles by scenario (scenario-a, scenario-b, scenario-c, verify, traces) and the final report evidence/final-report.md (DEC-100, DEC-111); never hand-edited
 docs/                     # runbook, ADRs (once approved), API change notes
-compose.yaml             # local PostgreSQL and Redis (PA-014)
+docker-compose.yml        # local PostgreSQL 16 and Redis 7.2, with health checks (PA-014, DEC-113)
 package.json, package-lock.json, tsconfig.json, vitest.config.ts, eslint.config.js
 .secrets/, inbox/         # runtime secrets and work-package inbox, git-ignored
 ```
@@ -378,7 +378,7 @@ Recorded in the specification's Decision Record. Numbering note: the request nam
 | ID | Decision | Approval | Record |
 |----|----------|----------|--------|
 | PD-01 | Scenario provenance: core shortener first (labelled not orchestrator-run); Scenario A governs the analytics increment; retroactive governance rejected | Approved | DEC-059 |
-| PD-02 | Technology stack: **TypeScript on Node.js (tested on 22), Fastify, PostgreSQL 16, Redis 7.2, Vitest with Supertest**; ADRs updated | Approved | DEC-060, DEC-071, DEC-098 |
+| PD-02 | Technology stack: **TypeScript on Node.js (tested on 24), Fastify, PostgreSQL 16, Redis 7.2, Vitest with Supertest**; ADRs updated | Approved | DEC-060, DEC-071, DEC-098 |
 | PD-03 | Shared identity behind one IP-address hash accepted as a disclosed limitation, **LIM-004** (hardening deferred to BL-05) | Approved | DEC-061 |
 | PD-04 | A lease-expired request whose commit is aborted receives `503` with reason `request_superseded` and `Retry-After`; no mapping; retry-safe | Approved; retry guidance confirmed (DEC-068) | DEC-062 |
 | PD-05 | Plan assumptions PA-001 to PA-010 as written | Approved | DEC-063 |
@@ -396,6 +396,16 @@ Numbering note: the human asked for DEC-066 and DEC-067 "to avoid the DEC-058 co
 | PD-10 | Retry after `request_superseded` | The contract **recommends retrying with the same idempotency key** (it returns the superseding request's outcome, or 409 while that is in progress); a client may use a new key but accepts the risk of creating a duplicate mapping | DEC-068 |
 | R-23 | Docker, PostgreSQL, and Redis verification risk | Accepted. Starting Docker Desktop and verifying both services is a mandatory precondition (CP-1). If that cannot be done, the project stops with a NOT_READY outcome and a documented blocker list | DEC-069 |
 | PA-011 to PA-014 | Redis-down behavior, library choices, Compose setup | Approved. **PA-011 is amended** to match the explicit Redis-down decision: the text approved "as written" said in-process buckets, while the same message decided PostgreSQL-based checks; the explicit decision governs | DEC-070 |
+
+### 9.2a ADR gate decisions (DEC-107 to DEC-113, 2026-10-16)
+
+| Record | Decision |
+|--------|----------|
+| DEC-107 to DEC-109 | ADR-003, ADR-014, and ADR-025 (revised) accepted; the seven judgment calls (CONDITIONAL-PASS as a derived disposition, single-attempt capture, numbering, GET-only analytics, metadata interpretation, image tags, Node) confirmed |
+| DEC-110 | CLI credentials come from environment variables only (`APPROVER_IDENTITY`, `APPROVER_CREDENTIAL`, `AGENT_CREDENTIAL`, `READER_CREDENTIAL`, confirmed); no files, no prompts |
+| DEC-111 | The final report is `evidence/final-report.md` |
+| DEC-112 | Evidence has no size limit, is retained for the assessment, and is committed to the GitHub repository for reviewer access |
+| DEC-113 | Compose and database settings: `POSTGRES_USER=app`, `POSTGRES_DB=urlshortener`, no external pooler; Redis default configuration with no persistence; health checks in `docker-compose.yml` (four interpretations recorded in ADR-023, all confirmed by the human on 2026-10-16) |
 
 ### 9.3 Approval of this plan's status
 

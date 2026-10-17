@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-076. Clarification: the approver identity is a simple string identifier.
+**Accepted.** Approved by the human candidate on 2026-10-16, recorded as DEC-076. Clarification: the approver identity is a simple string identifier. Amended by DEC-110: CLI credentials come from environment variables only.
 
 ## Context
 
@@ -30,7 +30,7 @@ Testable human-approval proof; least privilege; content binding; clear timeout s
 
 ## Decision
 
-Use **option A**. Ten gates (G-AMB, G-ARCH, G-CODE, G-SEC, G-DESTR, G-EXC, G-RISK, G-REL, G-FINAL, G-CHG) accept decisions **only with the approver credential**. Each decision carries the approver identity (a simple string identifier such as `human-candidate`, configured at `orch init` and bound to the approver credential, with no further authentication system for the prototype, DEC-101), a role string, a reason, and the **subject hash** of the content reviewed; a stale hash is rejected (`approval_subject_changed`). Gate timeouts: 24 hours logical, one escalation (record the escalation and extend once, since there is no second approver), 24 hours logical, then safe-stop; tests simulate the durations and label them (DEC-044). A late response after safe-stop is rejected as `late_response_after_safe_stop` (DEC-041). Repeated identical decisions are idempotent. An agent worker refuses to start if the approver credential is in its environment.
+Use **option A**. Ten gates (G-AMB, G-ARCH, G-CODE, G-SEC, G-DESTR, G-EXC, G-RISK, G-REL, G-FINAL, G-CHG) accept decisions **only with the approver credential**. Each decision carries the approver identity (a simple string identifier such as `human-candidate`, configured at `orch init` and bound to the approver credential, with no further authentication system for the prototype, DEC-101), a role string, a reason, and the **subject hash** of the content reviewed; a stale hash is rejected (`approval_subject_changed`). Gate timeouts: 24 hours logical, one escalation (record the escalation and extend once, since there is no second approver), 24 hours logical, then safe-stop; tests simulate the durations and label them (DEC-044). A late response after safe-stop is rejected as `late_response_after_safe_stop` (DEC-041). Repeated identical decisions are idempotent. An agent worker refuses to start if the approver credential (`APPROVER_CREDENTIAL`) is in its environment. **CLI credentials (DEC-110):** the CLI reads credentials only from environment variables: `APPROVER_IDENTITY` (the identity string) and the role credential secret from `APPROVER_CREDENTIAL` (agent workers use `AGENT_CREDENTIAL`, the reviewer `READER_CREDENTIAL`); no configuration files and no interactive prompts. The three credential-variable names were **confirmed by the human on 2026-10-16**; the original text named only `APPROVER_IDENTITY`, which is an identity, not a secret. `orch init` shows the secrets once and writes `.secrets/` (git-ignored) for the human to load into the environment; the CLI never reads that directory.
 
 ## Rationale
 
