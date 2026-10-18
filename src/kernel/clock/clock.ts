@@ -1,3 +1,10 @@
+/**
+ * Clock Port for Deterministic Time Testing
+ *
+ * Requirements: FR-010 (expiration logic), FR-110 (time-dependent orchestration)
+ * ADRs: ADR-010 (Clock port for deterministic testing)
+ * Tasks: T010 (Expiration logic), T011 (Orchestration engine time)
+ */
 import type { ClockKind } from '../../types/orchestration.js';
 
 // Clock port (ADR-010). Every timestamp and deadline in the system comes from a Clock; this file is the
