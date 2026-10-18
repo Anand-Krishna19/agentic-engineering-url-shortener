@@ -342,7 +342,7 @@ npm test tests/integration/scenarios/greenfield.test.ts
 - `docker/init-db/002-roles.sql`
 - `src/orchestrator/gates/approval-gate.ts`
 
-**Residual risks:** FR-022 (Rate limiting) is a mandatory requirement. A basic in-memory rate-limiting middleware has been added, but a production Redis-backed solution is deferred.
+**Residual risks:** Basic in-memory rate limiting is implemented (FR-022); production Redis-backed solution per ADR-011 is deferred
 
 ---
 
