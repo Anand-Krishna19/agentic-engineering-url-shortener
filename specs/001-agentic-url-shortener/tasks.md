@@ -59,3 +59,9 @@
 ## Phase 4: Convergence
 
 - [ ] T038 CRITICAL Correct the traceability headers added to `src/orchestrator/engine/*.ts`, `src/orchestrator/gates/approval-gate.ts`, and `src/orchestrator/reliability/retry-handler.ts` (and the matching tests): they cite requirements that do not say what the header claims (for example DEC-045 is the 24-hour policy-block window, FR-115 is gate timeout and escalation, FR-118 is fallback, FR-119 is rollback and compensation, DEC-062 is the superseded-request response, ADR-019 is the dependency-graph representation, and FR-122 is dynamic re-planning, not safe-stop), and they use task ids T011, T012, and T015 that now mean different tasks in this file; cite the real FR, ADR, and DEC and the real task id for each module, per Constitution X, FR-132 (contradicts)
+
+## Phase 5: Convergence
+
+- [ ] T039 HIGH Label the evidence under `evidence/scn-a-greenfield/` as simulated or in-memory demonstration output (scripted agents, hand-entered requirement "Add /healthz endpoint"), and include the evaluated `policyVersion` in `run_state.json`; confirm `approval_record.json` matches an approval actually recorded by the gate, per FR-107, FR-124, Constitution XI (partial)
+- [ ] T040 MEDIUM Remove or substantiate the claim of submission tag `assessment-submission-v1.0` in `docs/assessment/reviewer-navigation-guide.md`: no git tag exists in the repository, so either create the tag at the reviewed commit or delete the reference, per FR-132, Constitution XI (contradicts)
+- [ ] T041 LOW Resolve the duplicate checklist `specs/001-agentic-url-shortener/checklists/checklists/requirements.md` (54 lines) against `checklists/requirements.md` (56 lines): keep one, and record the final checklist status, per FR-132, Constitution X (unrequested)
