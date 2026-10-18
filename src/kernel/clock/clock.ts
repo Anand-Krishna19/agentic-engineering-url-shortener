@@ -1,11 +1,11 @@
 /**
- * Orchestration State Transitions
+ * Clock Port for Deterministic Time
  *
- * Implements the approved workflow state model with SAFE_STOPPED as a
- * permanent terminal state. Requirement and ADR citations are populated
- * from the authoritative SpecKit artifacts — see
- * docs/traceability/traceability.md. Do not add identifiers here without
- * verifying them against spec.md, data-model.md, and docs/adr/.
+ * Implements ADR-010: injectable Clock port for deterministic testing
+ * of time-dependent logic (timeouts, expiry, leases).
+ * WallClock for production, SimulatedClock for tests.
+ *
+ * ADRs: ADR-010 (time, determinism, and simulated timeouts: a clock port)
  */
 import type { ClockKind } from '../../types/orchestration.js';
 

@@ -1,11 +1,15 @@
 /**
- * Orchestration State Transitions
+ * Orchestration Workflow State Transitions
  *
- * Implements the approved workflow state model with SAFE_STOPPED as a
- * permanent terminal state. Requirement and ADR citations are populated
- * from the authoritative SpecKit artifacts — see
- * docs/traceability/traceability.md. Do not add identifiers here without
- * verifying them against spec.md, data-model.md, and docs/adr/.
+ * Implements the approved workflow state model from data-model.md §workflow_runs:
+ * CREATED → RUNNING → {SAFE_STOPPED, COMPLETED, CANCELLED}
+ * Terminal states: SAFE_STOPPED, COMPLETED, CANCELLED
+ * SAFE_STOPPED is permanent (DEC-050): no transitions out.
+ *
+ * Requirements: FR-104 (stage entry/exit criteria enforcement),
+ *               FR-105 (explicit dependency-based ordering, not linear chain)
+ * ADRs:         ADR-004 (custom in-process orchestration engine)
+ * DECs:         DEC-050 (SAFE_STOPPED is permanent, recovery is a new run)
  */
 
 export const WORKFLOW_TRANSITIONS: Record<string, string[]> = {

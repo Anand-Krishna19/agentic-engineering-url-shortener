@@ -1,11 +1,14 @@
 /**
- * Orchestration State Transitions
+ * Bounded Retry Handler
  *
- * Implements the approved workflow state model with SAFE_STOPPED as a
- * permanent terminal state. Requirement and ADR citations are populated
- * from the authoritative SpecKit artifacts — see
- * docs/traceability/traceability.md. Do not add identifiers here without
- * verifying them against spec.md, data-model.md, and docs/adr/.
+ * Implements transient failure recovery per ADR-020.
+ * Bounds: 3 retries after first attempt, 1s doubling backoff, 10s timeout.
+ * Distinguishes transient vs permanent failures.
+ *
+ * Requirements: FR-020 (transient persistence failures use bounded retries
+ *                        with defined backoff and timeout)
+ * ADRs:         ADR-020 (retry, fallback, and safe-stop policy:
+ *                         3 retries, 1s doubling backoff, 10s timeout)
  */
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
 

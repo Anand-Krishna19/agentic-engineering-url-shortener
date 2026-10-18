@@ -1,11 +1,18 @@
 /**
- * Orchestration State Transitions
+ * Orchestration State Machine Engine
  *
- * Implements the approved workflow state model with SAFE_STOPPED as a
- * permanent terminal state. Requirement and ADR citations are populated
- * from the authoritative SpecKit artifacts — see
- * docs/traceability/traceability.md. Do not add identifiers here without
- * verifying them against spec.md, data-model.md, and docs/adr/.
+ * Implements workflow lifecycle from data-model.md §workflow_runs.
+ * Creates workflows with unique run IDs and policy versions (FR-101).
+ * Enforces stage entry/exit criteria (FR-104).
+ * Persists workflow state (FR-107) and decision lineage (FR-108).
+ *
+ * Requirements: FR-101 (workflow creation with run ID + policy version),
+ *               FR-104 (stage entry/exit criteria),
+ *               FR-107 (persist workflow state),
+ *               FR-108 (decision lineage)
+ * ADRs:         ADR-004 (custom orchestration engine),
+ *               ADR-018 (workflow state persistence)
+ * DECs:         DEC-050 (SAFE_STOPPED is permanent)
  */
 import { isValidWorkflowTransition } from './transitions.js';
 import { Clock, WallClock } from '../../kernel/clock/clock.js';

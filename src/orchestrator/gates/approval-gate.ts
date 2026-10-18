@@ -1,11 +1,17 @@
 /**
- * Orchestration State Transitions
+ * Human Approval Gate
  *
- * Implements the approved workflow state model with SAFE_STOPPED as a
- * permanent terminal state. Requirement and ADR citations are populated
- * from the authoritative SpecKit artifacts — see
- * docs/traceability/traceability.md. Do not add identifiers here without
- * verifying them against spec.md, data-model.md, and docs/adr/.
+ * Implements human approval checkpoints per ADR-007.
+ * Requires explicit approver credential (DEC-037) that agents never hold.
+ * Timeout never means approval (FR-115, DEC-041).
+ * Records approver identity, role, reason, and subject hash.
+ *
+ * Requirements: FR-114 (human approval checkpoints with approve/reject/escalate,
+ *                         recorded reason and actor),
+ *               FR-115 (timeout must never mean approval)
+ * ADRs:         ADR-007 (human approval model: credential-based, timeout semantics)
+ * DECs:         DEC-037 (approver credential agents never hold),
+ *               DEC-041 (timeout semantics, late response rejection)
  */
 import { OrchestrationStateMachine, TransitionResult } from '../engine/state-machine.js';
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
