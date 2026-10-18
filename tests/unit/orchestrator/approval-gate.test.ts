@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { OrchestrationStateMachine } from '../../../src/orchestrator/engine/state-machine.js';
 import { ApprovalGate } from '../../../src/orchestrator/gates/approval-gate.js';
+import { SimulatedClock } from '../../../src/kernel/clock/clock.js';
 
 // Set test credential before tests run
 process.env.APPROVER_CREDENTIAL = 'test-credential';
@@ -70,5 +71,31 @@ describe('ApprovalGate (FR-114, FR-115, FR-116, ADR-007, DEC-058)', () => {
         expect(pending).toHaveLength(1);
         expect(pending[0]!.status).toBe('PENDING');
         expect(gate.isApproved('gate-1')).toBe(false);
+    });
+});
+describe('ApprovalGate timeout (FR-115, DEC-041)', () => {
+    it('escalates and safe-stops an overdue gate on the Clock with no human reply, and rejects a late decision', () => {
+        const clock = new SimulatedClock('2026-01-01T00:00:00.000Z');
+        const sm = new OrchestrationStateMachine(clock);
+        const gate = new ApprovalGate(clock);
+        sm.createRun('run-t', 'policy-v1.0');
+        sm.transition('run-t', 'RUNNING', 'system', 'start');
+        gate.requestApproval('run-t', 'gate-t', 'agent', 'review', 60_000);
+
+        clock.advance(59_999);
+        expect(gate.expireOverdue(sm)).toEqual([]);
+        expect(sm.getRun('run-t')?.status).toBe('RUNNING');
+
+        clock.advance(1);
+        expect(gate.expireOverdue(sm)).toHaveLength(1);
+        expect(sm.getRun('run-t')?.status).toBe('SAFE_STOPPED');
+        expect(gate.isApproved('gate-t')).toBe(false);
+        expect(gate.escalations).toMatchObject([{ gateId: 'gate-t', runId: 'run-t' }]);
+
+        const late = gate.processDecision(sm, 'gate-t', {
+            approver: 'h', credential: 'test-credential', decision: 'APPROVED', reason: 'late', timestamp: clock.now().toISOString(),
+        });
+        expect(late.success).toBe(false);
+        expect(gate.isApproved('gate-t')).toBe(false);
     });
 });

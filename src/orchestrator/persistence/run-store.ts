@@ -141,6 +141,22 @@ export class RunStore {
         return this.db.withConnection((conn) => this.load(conn, runId));
     }
 
+    /** Appends a hash-chained audit event for a run (used by the compensation ledger). */
+    async recordEvent(
+        runId: string, actor: Actor, action: AuditAction, subjectId: string, reason: string, data: Record<string, unknown>,
+    ): Promise<void> {
+        await this.db.withConnection((conn) =>
+            this.audit(conn, runId, actor, action, 'NODE', subjectId, 'SUCCESS', reason, data));
+    }
+
+    /** Audit events of one action for a run, oldest first. */
+    async eventsOf(runId: string, action: AuditAction): Promise<Array<{ subject_id: string; data: Record<string, unknown> }>> {
+        return this.db.withConnection(async (conn) => {
+            const r = await conn.query('SELECT subject_id, data FROM audit_events WHERE run_id = $1 AND action = $2 ORDER BY seq', [runId, action]);
+            return r.rows.map((x) => ({ subject_id: String(x.subject_id), data: (x.data ?? {}) as Record<string, unknown> }));
+        });
+    }
+
     private async audit(
         conn: Queryable, runId: string, actor: Actor, action: AuditAction, subjectType: 'RUN' | 'NODE',
         subjectId: string, result: 'SUCCESS' | 'REJECTED', reason: string, data?: Record<string, unknown>,

@@ -45,7 +45,7 @@ describe('RetryHandler (FR-117, FR-118, FR-119, ADR-020)', () => {
         expect(result.lastError).toContain('Permanent failure');
     });
 
-    it('enforces total timeout before starting next attempt using SimulatedClock', async () => {
+    it('enforces the per-attempt timeout using SimulatedClock', async () => {
         const simulatedClock = new SimulatedClock(new Date());
         const handler = new RetryHandler({ timeoutMs: 50, baseDelayMs: 10, maxAttempts: 3 }, simulatedClock);
 
@@ -60,8 +60,7 @@ describe('RetryHandler (FR-117, FR-118, FR-119, ADR-020)', () => {
             return Promise.resolve('done');
         });
 
-        // The first attempt fails. Before starting attempt 2, the handler checks
-        // elapsed time (60ms > 50ms) and correctly times out.
+        // The first attempt ran 60ms against a 50ms per-attempt limit, so it is reported as timed out.
         expect(result.timedOut).toBe(true);
         expect(result.success).toBe(false);
         expect(result.attempts).toBe(1);
@@ -80,5 +79,11 @@ describe('RetryHandler (FR-117, FR-118, FR-119, ADR-020)', () => {
             const delay2 = timestamps[2]! - timestamps[1]!;
             expect(delay2).toBeGreaterThanOrEqual(delay1);
         }
+    });
+});
+describe('RetryHandler defaults (ADR-020)', () => {
+    it('uses 3 retries after the first attempt, 1s doubling backoff and a 10s per-attempt timeout', () => {
+        const cfg = (new RetryHandler() as unknown as { config: Record<string, number> }).config;
+        expect(cfg).toMatchObject({ maxAttempts: 4, baseDelayMs: 1000, timeoutMs: 10_000 });
     });
 });

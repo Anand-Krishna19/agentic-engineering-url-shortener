@@ -20,7 +20,7 @@ You can copy this directly into your `docs/assessment/final-engineering-summary.
 
 ### Status: NOT READY
 
-The core URL shortener domain (T001–T010) is fully implemented with 381+ passing tests. A minimal orchestration engine (T011–T015) demonstrating state persistence, human approval gates, and bounded retries has been built. The Greenfield scenario has been executed.
+The core URL shortener domain (T001–T010) is implemented, with gaps tracked by T019–T022 with 429 passing (full suite) tests. A minimal orchestration engine (partial; see T015–T018, T023) demonstrating state persistence, human approval gates, and bounded retries has been built. The Greenfield scenario has been executed.
 
 **However, the system is NOT READY for release due to the following blocking gaps:**
 1. **Missing Executed Tests**: FR-020 (retry/backoff in application), FR-022 (rate limiting and client identity), and FR-023 (stats endpoint) have no executed passing tests, violating Plan §6.1 readiness condition C3.
@@ -41,10 +41,10 @@ Successfully delivered within the 2–3 day constraint:
 | Deliverable | Status |
 | :--- | :--- |
 | Engineering baseline | ✅ Complete |
-| Core URL behavior | ✅ Complete |
-| Orchestration state model | ✅ Complete |
-| Approval governance | ✅ Complete |
-| Reliability controls | ✅ Complete |
+| Core URL behavior | 🟡 Partial (T019-T022) |
+| Orchestration state model | 🟡 Partial (T015) |
+| Approval governance | 🟡 Partial (T011, T017) |
+| Reliability controls | 🟡 Partial (T018) |
 | Greenfield scenario | ✅ Executed |
 | Brownfield scenario | 🟡 Designed, not executed |
 | Ambiguous scenario | 🟡 Designed, not executed |
@@ -130,7 +130,7 @@ CREATED → RUNNING → AWAITING_APPROVAL → RUNNING → COMPLETED
 ## 7. Human Approvals, Governance Gates, and Decision Lineage
 
 ### Governance Model
-The `ApprovalGate` class (T012) strictly blocks progression to `RUNNING` until:
+The `ApprovalGate` class (see T011, T017) blocks progression to `RUNNING` until:
 1. Explicit `APPROVED` decision is received.
 2. Correct `APPROVER_CREDENTIAL` is provided.
 3. Decision is recorded in the audit trail.
@@ -190,7 +190,7 @@ No policy exceptions were required or granted during the Greenfield scenario exe
 ## 11. Reliability, Retry, Fallback, Rollback/Compensation, and Safe-Stop
 
 ### Retry Implementation
-`RetryHandler` (T015) provides:
+`RetryHandler` (see T018) provides:
 * Bounded retries (max 3).
 * Exponential backoff.
 * Strict timeout enforcement using injected `Clock` port.
@@ -250,7 +250,7 @@ Explicit `safeStop()` transition halts execution on unsafe conditions, preservin
 
 ## 15. Brownfield Scenario Outcome
 
-### Status: 🟡 DESIGNED, NOT EXECUTED (Accepted Limitation)
+### Status: 🟡 DESIGNED, NOT EXECUTED (blocking gap)
 
 ### Rationale
 Timebox constraint. The following are fully defined:
@@ -265,13 +265,13 @@ End-to-end execution deferred to prioritize Greenfield demonstration and core or
 
 ## 16. Ambiguous-Requirement Scenario Outcome
 
-### Status: 🟡 DESIGNED, NOT EXECUTED (Accepted Limitation)
+### Status: 🟡 DESIGNED, NOT EXECUTED (blocking gap)
 
 ### Rationale
 Timebox constraint. The following are fully designed:
 * Safe-stop mechanism.
 * Ambiguity detection.
-* Human clarification request workflow (T020).
+* Human clarification request workflow (T024).
 
 ### Deferred Execution
 Live demonstration deferred.
@@ -289,8 +289,8 @@ Red-Green-Refactor TDD for domain and orchestration behavior.
 | :--- | :--- |
 | `npm run lint` | ✅ Clean |
 | `npm run typecheck` | ✅ Clean |
-| `npm test` | ✅ 381+ passing |
-| Mutation testing (audit REVOKE) | ✅ Confirmed enforcement |
+| `npm test` | ✅ 429 passing (full suite) |
+| Mutation testing (audit REVOKE) | Not evidenced as a REVOKE test; `run-store.test.ts` exercises the audit no-mutation trigger instead |
 
 ### Test Coverage
 * **Unit tests:** Domain logic, orchestration state machine.
@@ -303,10 +303,10 @@ Red-Green-Refactor TDD for domain and orchestration behavior.
 
 ### Traceability Matrix
 * **Location:** `docs/traceability/traceability.md`
-* **Coverage:** Every implemented task (T001–T016) explicitly cites governing FRs, ADRs, and DECs.
+* **Coverage:** Header citations are incomplete and partly incorrect; see T013 and T038 in tasks.md.
 
 ### Verification
-No orphaned requirements or tests exist.
+Not verified; see T013 and T038.
 
 ---
 
@@ -335,7 +335,7 @@ docker compose up -d
 ```bash
 npm test
 ```
-*Verifies 381+ tests, including `tests/integration/scenarios/greenfield.test.ts`*
+*Verifies 429 tests (full suite), including `tests/integration/scenarios/greenfield.test.ts`*
 
 ### Lint/Typecheck
 ```bash
@@ -360,16 +360,16 @@ The submission successfully demonstrates the core differentiator of the assessme
 * ✅ Enforced human gates
 * ✅ Bounded reliability
 * ✅ Auditable decision lineage
-* ✅ Built atop a production-quality URL shortener domain
+* ✅ Built atop a URL shortener (partial; rate limiting and creator stats not yet implemented) domain
 
 ### Unresolved Blockers
-None blocking the `READY WITH ACCEPTED LIMITATIONS` status.
+The blocking gaps listed in the Status section above (open tasks T011 to T038 in `tasks.md`) prevent release. The decision is `NOT READY`.
 
 ### Recommended Next Actions
 If granted additional time:
-1. Execute Brownfield and Ambiguous scenarios end-to-end → elevate to fully `READY`.
-2. Implement PostgreSQL persistence layer for orchestration state machine.
-3. Complete rate limiting implementation.
+1. Execute Brownfield and Ambiguous scenarios end-to-end (T030) as a precondition for a `READY` decision.
+2. Resume the orchestration state machine from the PostgreSQL store (T016, T023).
+3. Implement rate limiting (T020).
 4. Execute full policy engine.
 
 ---
@@ -378,12 +378,12 @@ If granted additional time:
 
 | Evidence Type | Location | Status |
 | :--- | :--- | :--- |
-| URL Shortener Tests | `tests/unit/`, `tests/integration/` | ✅ 381+ passing |
-| Orchestration Tests | `tests/unit/orchestrator/` | ✅ 24 passing |
+| URL Shortener Tests | `tests/unit/`, `tests/integration/` | ✅ 429 passing (full suite) |
+| Orchestration Tests | `tests/unit/orchestrator/` | ✅ 33 passing |
 | Greenfield Scenario | `tests/integration/scenarios/greenfield.test.ts` | ✅ Executed |
-| Traceability Matrix | `docs/traceability/traceability.md` | ✅ Complete |
-| ADRs | `docs/adr/` | ✅ 27 accepted |
-| Checklists | `specs/001-agentic-url-shortener/checklists/` | ✅ 19 checklists |
+| Traceability Matrix | `docs/traceability/traceability.md` | 🟡 Incomplete (T013, T038) |
+| ADRs | `docs/adr/` | ✅ 27 ADRs, each with an Accepted status (plus README) |
+| Checklists | `specs/001-agentic-url-shortener/checklists/` | 🟡 1 requirements checklist (`requirements.md`; a duplicate sits in `checklists/checklists/`) |
 
 ---
 **Document Version:** 1.0  

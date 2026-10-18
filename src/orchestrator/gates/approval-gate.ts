@@ -22,6 +22,7 @@ export interface ApprovalRequest {
     readonly requestedBy: string;
     readonly reason: string;
     readonly requestedAt: string;
+    readonly timeoutMs: number;
     readonly status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'TIMED_OUT';
 }
 
@@ -49,6 +50,8 @@ const APPROVAL_TIMEOUT_MS = 300_000;
 export class ApprovalGate {
     private readonly pendingApprovals: Map<string, ApprovalRequest> = new Map();
     private readonly decisions: Map<string, ApprovalDecision> = new Map();
+    /** Gates escalated on timeout, in order (FR-115: escalate, never pass). */
+    readonly escalations: Array<{ gateId: string; runId: string; at: string }> = [];
     private readonly clock: Clock;
 
     constructor(clock: Clock = new WallClock()) {
@@ -60,6 +63,7 @@ export class ApprovalGate {
         gateId: string,
         requestedBy: string,
         reason: string,
+        timeoutMs: number = APPROVAL_TIMEOUT_MS,
     ): ApprovalRequest {
         const request: ApprovalRequest = {
             runId,
@@ -67,6 +71,7 @@ export class ApprovalGate {
             requestedBy,
             reason,
             requestedAt: this.clock.now().toISOString(),
+            timeoutMs,
             status: 'PENDING',
         };
 
@@ -84,15 +89,17 @@ export class ApprovalGate {
             return { success: false, error: `Approval gate ${gateId} not found` };
         }
 
+        if (request.status === 'TIMED_OUT') {
+            return { success: false, error: `Late response rejected: gate ${gateId} already timed out` };
+        }
+
         const requiredCredential = getRequiredCredential();
         if (decision.credential !== requiredCredential) {
             return { success: false, error: 'Invalid approver credential' };
         }
 
-        const elapsed = this.clock.now().getTime() - new Date(request.requestedAt).getTime();
-        if (elapsed > APPROVAL_TIMEOUT_MS) {
-            this.pendingApprovals.set(gateId, { ...request, status: 'TIMED_OUT' });
-            return stateMachine.safeStop(request.runId, 'system', `Approval gate ${gateId} timed out`);
+        if (this.isOverdue(request)) {
+            return this.expire(stateMachine, request);
         }
 
         this.decisions.set(gateId, decision);
@@ -105,6 +112,26 @@ export class ApprovalGate {
             // On rejection, safe-stop the workflow
             return stateMachine.safeStop(request.runId, decision.approver, `Rejected: ${decision.reason}`);
         }
+    }
+
+    /**
+     * Clock-driven sweep: every overdue pending gate is escalated and its run safe-stopped.
+     * Silence never approves (FR-115); no human reply is needed for the stop to happen.
+     */
+    expireOverdue(stateMachine: OrchestrationStateMachine): TransitionResult[] {
+        return this.getPendingApprovals()
+            .filter((r) => r.status === 'PENDING' && this.isOverdue(r))
+            .map((r) => this.expire(stateMachine, r));
+    }
+
+    private isOverdue(request: ApprovalRequest): boolean {
+        return this.clock.now().getTime() - new Date(request.requestedAt).getTime() >= request.timeoutMs;
+    }
+
+    private expire(stateMachine: OrchestrationStateMachine, request: ApprovalRequest): TransitionResult {
+        this.pendingApprovals.set(request.gateId, { ...request, status: 'TIMED_OUT' });
+        this.escalations.push({ gateId: request.gateId, runId: request.runId, at: this.clock.now().toISOString() });
+        return stateMachine.safeStop(request.runId, 'system', `Approval gate ${request.gateId} timed out; escalated`);
     }
 
     isApproved(gateId: string): boolean {

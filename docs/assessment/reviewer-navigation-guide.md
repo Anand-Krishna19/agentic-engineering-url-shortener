@@ -8,7 +8,7 @@ This guide is what the reviewer will use to navigate your repository. It must be
 
 **Repository:** `agentic-engineering-url-shortener`  
 **Submission Tag:** `assessment-submission-v1.0`  
-**Release Decision:** `READY WITH ACCEPTED LIMITATIONS`  
+**Release Decision:** `NOT READY`  
 **Date:** 2026-10-18
 
 ---
@@ -17,7 +17,7 @@ This guide is what the reviewer will use to navigate your repository. It must be
 
 **File:** `docs/assessment/final-engineering-summary.md` §1–§2
 
-Demonstrate a governed, stateful, non-linear agentic software engineering orchestration system using the URL shortener as the demonstration domain. The submission delivers a production-quality URL shortener (381+ tests) atop a minimal but genuine orchestration engine with enforced human gates, bounded retries, and auditable decision lineage.
+Demonstrate a governed, stateful, non-linear agentic software engineering orchestration system using the URL shortener as the demonstration domain. The submission delivers a URL shortener (partial; rate limiting and creator stats not yet implemented) (429 tests across the whole suite) atop a minimal but genuine orchestration engine with enforced human gates, bounded retries, and auditable decision lineage.
 
 ---
 
@@ -50,7 +50,7 @@ curl http://localhost:3000/readyz
 ## 3. How to Run Tests
 
 ```bash
-# Full test suite (381+ tests)
+# Full test suite (429 tests across the whole suite)
 npm test
 
 # Unit tests only
@@ -66,7 +66,7 @@ npm test tests/unit/orchestrator/
 npm test tests/integration/scenarios/
 
 # Coverage
-npm run test:coverage
+# No coverage script exists yet (T031)
 
 # Lint and typecheck
 npm run lint
@@ -195,7 +195,7 @@ console.log(result);
 
 ## 9. How to Demonstrate Compensation or Rollback
 
-**Status:** 🟡 **DESIGNED, NOT EXECUTED (Accepted Limitation)**
+**Status:** 🟡 **DESIGNED, NOT EXECUTED (blocking gap)**
 
 **Design:** ADR-020 distinguishes rollback (undo) from compensation (counter-action). The state machine supports `SAFE_STOPPED` → `RUNNING` resumption, which is the foundation for compensation workflows.
 
@@ -221,7 +221,7 @@ sm.transition('demo-run-001', 'RUNNING', 'human', 'Resuming after review');
 
 ## 11. How to Demonstrate Dynamic Replanning
 
-**Status:** 🟡 **DESIGNED, NOT EXECUTED (Accepted Limitation)**
+**Status:** 🟡 **DESIGNED, NOT EXECUTED (blocking gap)**
 
 **Design:** The orchestration model supports dynamic replanning via state transitions and decision lineage. When upstream outputs change, the workflow can transition to `SAFE_STOPPED`, replan, and resume.
 
@@ -252,7 +252,7 @@ npm test tests/integration/scenarios/greenfield.test.ts
 
 ## 13. Brownfield Scenario
 
-**Status:** 🟡 **DESIGNED, NOT EXECUTED (Accepted Limitation)**
+**Status:** 🟡 **DESIGNED, NOT EXECUTED (blocking gap)**
 
 **Design:** Impact analysis gate (T019), regression risk matrix, and schema migration tasks are fully defined in `specs/001-agentic-url-shortener/tasks.md`.
 
@@ -262,9 +262,9 @@ npm test tests/integration/scenarios/greenfield.test.ts
 
 ## 14. Ambiguous-Requirement Scenario
 
-**Status:** 🟡 **DESIGNED, NOT EXECUTED (Accepted Limitation)**
+**Status:** 🟡 **DESIGNED, NOT EXECUTED (blocking gap)**
 
-**Design:** Safe-stop mechanism, ambiguity detection, and human clarification request workflow are fully designed (T020).
+**Design:** Safe-stop, ambiguity detection, and human clarification are not implemented (T024).
 
 **Limitation:** Live demonstration deferred. See `docs/assessment/final-engineering-summary.md` §16.
 
@@ -303,7 +303,7 @@ npm test tests/integration/scenarios/greenfield.test.ts
 
 **File:** `docs/traceability/traceability.md`
 
-**Coverage:** Every implemented task (T001–T016) explicitly cites governing FRs, ADRs, and DECs.
+**Coverage:** Header citations are incomplete and partly incorrect; see T013 and T038 in tasks.md.
 
 **Verification:** No orphaned requirements or tests.
 
@@ -352,9 +352,9 @@ npm test tests/integration/scenarios/greenfield.test.ts
 
 1. **Scenario Execution:** Brownfield and Ambiguous scenarios documented but not executed
 2. **Parallel Execution:** Designed but simulated, not fully parallelized
-3. **Persistence:** Workflow state in memory; PostgreSQL schema prepared but ORM deferred
-4. **Rate Limiting:** Designed but incomplete
-5. **Policy Engine:** Designed but not fully executed
+3. **Persistence:** A PostgreSQL-backed run and node store with a hash-chained audit writer exists (T016); the greenfield scenario test still uses in-memory state
+4. **Rate Limiting:** Not implemented; no rate-limiting code exists (T020)
+5. **Policy Engine:** Not implemented (T026)
 
 ---
 
@@ -362,7 +362,7 @@ npm test tests/integration/scenarios/greenfield.test.ts
 
 **File:** `docs/assessment/final-engineering-summary.md`
 
-**Release Decision:** `READY WITH ACCEPTED LIMITATIONS`
+**Release Decision:** `NOT READY`
 
 ---
 
@@ -428,7 +428,7 @@ curl http://localhost:3000/healthz
 ## Honest Disclosure
 
 This submission successfully demonstrates:
-- ✅ Production-quality URL shortener domain (381+ tests)
+- ✅ Production-quality URL shortener domain (429 tests across the whole suite)
 - ✅ Genuine orchestration state machine with human gates and bounded retry
 - ✅ Executed Greenfield scenario with auditable decision lineage
 
