@@ -6,7 +6,7 @@ This guide is what the reviewer will use to navigate your repository. It must be
 
 # Reviewer Navigation Guide
 
-**Repository:** `speckit-agentic-url-shortner`  
+**Repository:** `agentic-engineering-url-shortener`  
 **Submission Tag:** `assessment-submission-v1.0`  
 **Release Decision:** `READY WITH ACCEPTED LIMITATIONS`  
 **Date:** 2026-10-18
@@ -428,21 +428,16 @@ curl http://localhost:3000/healthz
 ## Honest Disclosure
 
 This submission successfully demonstrates:
-- ✅ Production-quality URL shortener (381+ tests)
-- ✅ Genuine orchestration state machine with human gates
+- ✅ Production-quality URL shortener domain (381+ tests)
+- ✅ Genuine orchestration state machine with human gates and bounded retry
 - ✅ Executed Greenfield scenario with auditable decision lineage
-- ✅ Bounded retry with timeout enforcement
-- ✅ Safe-stop and resumption
 
-**Not executed (accepted limitations):**
-- 🟡 Brownfield scenario (designed)
-- 🟡 Ambiguous scenario (designed)
-- 🟡 Full parallel execution (designed)
-- 🟡 Full compensation/rollback (designed)
-- 🟡 Full policy engine (designed)
+**Blocking Gaps (Why status is NOT READY):**
+- ❌ FR-020, FR-022, FR-023 have no executed passing tests.
+- ❌ Rate limiting is claimed in docs but has zero implementation code.
+- ❌ Full control plane (policy engine, replanning, compensation) is designed but not implemented.
 
-See `docs/assessment/final-engineering-summary.md` §19 for complete limitations list.
-
+These are not "accepted limitations"; they are incomplete mandatory requirements that violate Plan §6.1 readiness conditions. The system cannot be declared READY until these gaps are closed with implemented code and passing tests.
 ---
 
 **Document Version:** 1.0  

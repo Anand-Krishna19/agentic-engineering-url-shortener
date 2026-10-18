@@ -62,7 +62,7 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
         // 4. Human provides explicit, credential-verified approval (AWAITING_APPROVAL -> RUNNING)
         result = approvalGate.processDecision(stateMachine, 'arch-review-gate-01', {
             approver: 'senior-engineer',
-            credential: 'APPROVER_CREDENTIAL',
+            credential: 'test-approver-credential',
             decision: 'APPROVED',
             reason: 'Architecture aligns with ADR-002',
             timestamp: clock.now().toISOString(),
@@ -125,4 +125,7 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
         // Workflow remains blocked
         expect(stateMachine.getRun(runId)!.status).toBe('AWAITING_APPROVAL');
     });
+
+    // Set test credential before scenario runs
+    process.env.APPROVER_CREDENTIAL = 'test-approver-credential';
 });

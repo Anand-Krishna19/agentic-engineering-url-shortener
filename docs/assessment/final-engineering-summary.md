@@ -9,24 +9,25 @@ You can copy this directly into your `docs/assessment/final-engineering-summary.
 # Final Engineering Summary
 ## Agentic Software Engineering System: URL Shortener
 
-**Repository:** `speckit-agentic-url-shortner`  
-**SpecKit Version:** Recorded in `speckit-version.txt`  
-**Assessment Date:** 2026-10-18  
-**Release Decision:** `READY WITH ACCEPTED LIMITATIONS`
+**Repository**: `speckit-agentic-url-shortner`  
+**SpecKit Version**: Recorded in `speckit-version.txt`  
+**Assessment Date**: 2026-10-18  
+**Release Decision**: `NOT READY`
 
 ---
 
 ## 1. Executive Engineering Outcome and Release-Readiness Status
 
-### Status: READY WITH ACCEPTED LIMITATIONS
+### Status: NOT READY
 
-The core URL shortener domain (T001–T010) is fully implemented with **381+ passing tests**. A minimal but genuine orchestration engine (T011–T015) demonstrating state persistence, human approval gates, bounded retries, and decision lineage has been built and validated. The **Greenfield scenario (T016) has been executed end-to-end**.
+The core URL shortener domain (T001–T010) is fully implemented with 381+ passing tests. A minimal orchestration engine (T011–T015) demonstrating state persistence, human approval gates, and bounded retries has been built. The Greenfield scenario has been executed.
 
-**Accepted Limitations:**
-* Brownfield and Ambiguous scenarios are fully designed and mapped to tasks, but execution is time-boxed and deferred.
-* Full parallel execution synchronization is designed but not fully parallelized in this prototype.
-* Workflow state is held in memory for the prototype; the PostgreSQL persistence layer for orchestration state is prepared but the ORM/query layer is deferred.
+**However, the system is NOT READY for release due to the following blocking gaps:**
+1. **Missing Executed Tests**: FR-020 (retry/backoff in application), FR-022 (rate limiting and client identity), and FR-023 (stats endpoint) have no executed passing tests, violating Plan §6.1 readiness condition C3.
+2. **Incomplete Control Plane**: The full policy evaluation engine, dynamic replanning, and compensation workflows are designed but lack implemented code and tests.
+3. **Undocumented "Designed" Features**: Previous drafts claimed rate limiting was "designed but not fully implemented"; in reality, no rate-limiting code exists in the repository.
 
+These are not "accepted limitations"; they are incomplete mandatory requirements that block release readiness.
 ---
 
 ## 2. Project Objective, Scope, and 2–3-Day Timebox Outcome
@@ -309,17 +310,16 @@ No orphaned requirements or tests exist.
 
 ---
 
-## 19. Known Limitations, Technical Debt, and Deferred Enhancements
+## 19. Known Limitations, Technical Debt, and Blocking Gaps
 
-### Limitations
-1. **Scenario Execution:** Brownfield and Ambiguous scenarios documented and task-mapped but not executed.
-2. **Parallel Execution:** Dependency graph supports it, but concurrent task execution is simulated.
-3. **Persistence:** Workflow state held in memory (`Map`); PostgreSQL schema prepared but ORM/query layer deferred.
+### Blocking Gaps (Preventing Release Readiness)
+1. **FR-020, FR-022, FR-023**: No executed passing tests for application-level retry/backoff, rate limiting, or stats endpoints.
+2. **Rate Limiting Code**: Claimed as "designed" in earlier drafts, but no actual rate-limiting middleware or logic exists in the codebase.
+3. **Control Plane Completeness**: Policy evaluation, dynamic replanning, and compensation workflows lack implemented code and validation tests.
 
-### Technical Debt
-* Rate limiting implementation incomplete.
-* Full policy engine not executed.
-* Audit hash-chaining deferred.
+### Technical Debt (If Time Permits)
+- Workflow state is currently held in memory (`Map`); the PostgreSQL schema is prepared but the ORM/query layer for orchestration persistence is deferred.
+- Full parallel execution synchronization is designed but simulated, not fully parallelized.
 
 ---
 

@@ -18,7 +18,21 @@ export interface ApprovalDecision {
     readonly timestamp: string;
 }
 
-const REQUIRED_CREDENTIAL = 'APPROVER_CREDENTIAL';
+/**
+ * Credential verification uses environment variable (Constitution V, ADR-007, DEC-058).
+ * Never hard-code credentials in source.
+ */
+function getRequiredCredential(): string {
+    const credential = process.env.APPROVER_CREDENTIAL;
+    if (!credential || credential.length === 0) {
+        throw new Error(
+            'APPROVER_CREDENTIAL environment variable is required but not set. ' +
+            'See Constitution Principle V and ADR-007.'
+        );
+    }
+    return credential;
+}
+
 const APPROVAL_TIMEOUT_MS = 300_000; // 5 minutes
 
 export class ApprovalGate {
@@ -65,7 +79,9 @@ export class ApprovalGate {
             };
         }
 
-        if (decision.credential !== REQUIRED_CREDENTIAL) {
+        // Credential verification (DEC-058, ADR-007)
+        const requiredCredential = getRequiredCredential();
+        if (decision.credential !== requiredCredential) {
             return { success: false, run: stateMachine.getRun(request.runId)!, error: 'Invalid approver credential' };
         }
 
