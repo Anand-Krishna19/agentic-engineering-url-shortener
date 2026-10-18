@@ -80,29 +80,30 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
         expect(result.run.status).toBe('COMPLETED');
 
         // 6. Verify Decision Lineage (Audit Evidence)
+        // 6. Verify Decision Lineage (Audit Evidence)
         const finalRun = stateMachine.getRun(runId)!;
-        expect(finalRun.decisionLineage).toHaveLength(4); // 4 distinct state transitions
+        expect(finalRun.decisionLineage).toHaveLength(4);
 
         // Check first transition: CREATED -> RUNNING
-        expect(finalRun.decisionLineage[0].fromState).toBe('CREATED');
-        expect(finalRun.decisionLineage[0].toState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[0].actor).toBe('orchestrator');
+        expect(finalRun.decisionLineage[0]!.fromState).toBe('CREATED');
+        expect(finalRun.decisionLineage[0]!.toState).toBe('RUNNING');
+        expect(finalRun.decisionLineage[0]!.actor).toBe('orchestrator');
 
         // Check second transition: RUNNING -> AWAITING_APPROVAL
-        expect(finalRun.decisionLineage[1].fromState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[1].toState).toBe('AWAITING_APPROVAL');
-        expect(finalRun.decisionLineage[1].reason).toContain('Architecture review required');
+        expect(finalRun.decisionLineage[1]!.fromState).toBe('RUNNING');
+        expect(finalRun.decisionLineage[1]!.toState).toBe('AWAITING_APPROVAL');
+        expect(finalRun.decisionLineage[1]!.reason).toContain('Architecture review required');
 
         // Check third transition: AWAITING_APPROVAL -> RUNNING (via approval)
-        expect(finalRun.decisionLineage[2].fromState).toBe('AWAITING_APPROVAL');
-        expect(finalRun.decisionLineage[2].toState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[2].actor).toBe('senior-engineer');
-        expect(finalRun.decisionLineage[2].reason).toBe('Approved: Architecture aligns with ADR-002');
+        expect(finalRun.decisionLineage[2]!.fromState).toBe('AWAITING_APPROVAL');
+        expect(finalRun.decisionLineage[2]!.toState).toBe('RUNNING');
+        expect(finalRun.decisionLineage[2]!.actor).toBe('senior-engineer');
+        expect(finalRun.decisionLineage[2]!.reason).toBe('Approved: Architecture aligns with ADR-002');
 
         // Check fourth transition: RUNNING -> COMPLETED
-        expect(finalRun.decisionLineage[3].fromState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[3].toState).toBe('COMPLETED');
-        expect(finalRun.decisionLineage[3].actor).toBe('orchestrator');
+        expect(finalRun.decisionLineage[3]!.fromState).toBe('RUNNING');
+        expect(finalRun.decisionLineage[3]!.toState).toBe('COMPLETED');
+        expect(finalRun.decisionLineage[3]!.actor).toBe('orchestrator');
     });
 
     it('safely rejects unauthorized approval attempts (Security Gate)', () => {

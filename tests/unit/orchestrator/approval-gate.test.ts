@@ -65,7 +65,7 @@ describe('ApprovalGate (FR-114, FR-115, FR-116, ADR-007, DEC-058)', () => {
         gate.requestApproval(sm, 'run-1', 'gate-1', 'agent', 'Need approval');
         const pending = gate.getPendingApprovals();
         expect(pending).toHaveLength(1);
-        expect(pending[0].status).toBe('PENDING');
+        expect(pending[0]!.status).toBe('PENDING');
         const run = sm.getRun('run-1')!;
         expect(run.status).toBe('AWAITING_APPROVAL');
     });

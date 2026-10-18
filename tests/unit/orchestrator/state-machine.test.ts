@@ -88,11 +88,10 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             sm.transition('run-1', 'RUNNING', 'human', 'resume');
 
             const run = sm.getRun('run-1')!;
-            expect(run.decisionLineage).toHaveLength(3);
-            expect(run.decisionLineage[0].fromState).toBe('CREATED');
-            expect(run.decisionLineage[0].toState).toBe('RUNNING');
-            expect(run.decisionLineage[1].toState).toBe('SAFE_STOPPED');
-            expect(run.decisionLineage[2].toState).toBe('RUNNING');
+            expect(run.decisionLineage[0]!.fromState).toBe('CREATED');
+            expect(run.decisionLineage[0]!.toState).toBe('RUNNING');
+            expect(run.decisionLineage[1]!.toState).toBe('SAFE_STOPPED');
+            expect(run.decisionLineage[2]!.toState).toBe('RUNNING');
         });
     });
 });

@@ -1,7 +1,10 @@
 /**
- * Valid state transitions for the orchestration workflow.
- * Per data-model.md: CREATED → RUNNING → SAFE_STOPPED / COMPLETED / CANCELLED
- * Per orchestration-model.md: Node states with entry/exit criteria.
+ * Orchestration State Transitions
+ *
+ * Requirements: FR-101 (workflow state), FR-104 (state transitions), FR-106 (dependency evaluation)
+ * ADRs: ADR-004 (explicit dependency-graph state machine), ADR-019 (state persistence model)
+ * DECs: DEC-045 (state machine design)
+ * Tasks: T011 (Workflow State Machine and Execution Engine)
  */
 
 export const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
