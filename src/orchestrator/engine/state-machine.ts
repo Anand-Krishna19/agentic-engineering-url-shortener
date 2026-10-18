@@ -1,10 +1,11 @@
 /**
- * Orchestration State Machine Engine
+ * Orchestration State Transitions
  *
- * Requirements: FR-101, FR-104, FR-106, FR-122 (safe-stop)
- * ADRs: ADR-004, ADR-019, ADR-020 (reliability and recovery)
- * DECs: DEC-045, DEC-050 (SAFE_STOPPED is permanent)
- * Tasks: T011 (Workflow State Machine), T015 (Recovery and Safe-Stop)
+ * Implements the approved workflow state model with SAFE_STOPPED as a
+ * permanent terminal state. Requirement and ADR citations are populated
+ * from the authoritative SpecKit artifacts — see
+ * docs/traceability/traceability.md. Do not add identifiers here without
+ * verifying them against spec.md, data-model.md, and docs/adr/.
  */
 import { isValidWorkflowTransition } from './transitions.js';
 import { Clock, WallClock } from '../../kernel/clock/clock.js';

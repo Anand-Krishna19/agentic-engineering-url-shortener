@@ -1,10 +1,11 @@
 /**
- * Bounded Retry Handler
+ * Orchestration State Transitions
  *
- * Requirements: FR-117 (bounded retries), FR-118 (exponential backoff), FR-119 (timeout)
- * ADRs: ADR-020 (Reliability and recovery)
- * DECs: DEC-062 (retry bounds and backoff)
- * Tasks: T015 (Recovery and Dynamic Replanning - retry portion)
+ * Implements the approved workflow state model with SAFE_STOPPED as a
+ * permanent terminal state. Requirement and ADR citations are populated
+ * from the authoritative SpecKit artifacts — see
+ * docs/traceability/traceability.md. Do not add identifiers here without
+ * verifying them against spec.md, data-model.md, and docs/adr/.
  */
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
 

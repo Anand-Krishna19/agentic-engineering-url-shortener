@@ -1,9 +1,11 @@
 /**
- * Clock Port for Deterministic Time Testing
+ * Orchestration State Transitions
  *
- * Requirements: FR-010 (expiration logic), FR-110 (time-dependent orchestration)
- * ADRs: ADR-010 (Clock port for deterministic testing)
- * Tasks: T010 (Expiration logic), T011 (Orchestration engine time)
+ * Implements the approved workflow state model with SAFE_STOPPED as a
+ * permanent terminal state. Requirement and ADR citations are populated
+ * from the authoritative SpecKit artifacts — see
+ * docs/traceability/traceability.md. Do not add identifiers here without
+ * verifying them against spec.md, data-model.md, and docs/adr/.
  */
 import type { ClockKind } from '../../types/orchestration.js';
 

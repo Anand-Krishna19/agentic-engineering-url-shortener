@@ -1,10 +1,11 @@
 /**
  * Orchestration State Transitions
  *
- * Requirements: FR-101 (workflow state), FR-104 (state transitions), FR-106 (dependency evaluation)
- * ADRs: ADR-004 (explicit dependency-graph state machine), ADR-019 (state persistence model)
- * DECs: DEC-045 (state machine design), DEC-050 (SAFE_STOPPED is permanent)
- * Tasks: T011 (Workflow State Machine and Execution Engine)
+ * Implements the approved workflow state model with SAFE_STOPPED as a
+ * permanent terminal state. Requirement and ADR citations are populated
+ * from the authoritative SpecKit artifacts — see
+ * docs/traceability/traceability.md. Do not add identifiers here without
+ * verifying them against spec.md, data-model.md, and docs/adr/.
  */
 
 export const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
