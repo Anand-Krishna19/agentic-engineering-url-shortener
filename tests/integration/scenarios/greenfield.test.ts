@@ -3,6 +3,9 @@ import { OrchestrationStateMachine } from '../../../src/orchestrator/engine/stat
 import { ApprovalGate } from '../../../src/orchestrator/gates/approval-gate.js';
 import { SimulatedClock } from '../../../src/kernel/clock/clock.js';
 
+// Set test credential before scenario runs
+process.env.APPROVER_CREDENTIAL = 'test-credential';
+
 /**
  * Scenario A: Greenfield Demonstration
  *
@@ -20,14 +23,13 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
     const policyVersion = 'policy-v1.0';
 
     beforeEach(() => {
-        // Use SimulatedClock for deterministic, auditable timestamps
         clock = new SimulatedClock('2026-10-18T10:00:00.000Z');
         stateMachine = new OrchestrationStateMachine(clock);
         approvalGate = new ApprovalGate(clock);
     });
 
     it('executes a well-defined requirement end-to-end with enforced human approval', () => {
-        // 1. Requirement ingestion & decomposition (CREATED -> RUNNING)
+        // 1. Requirement ingestion & decomposition (CREATED → RUNNING)
         stateMachine.createRun(runId, policyVersion, {
             requirement: 'Add /healthz endpoint',
             ambiguityCheck: 'PASS',
@@ -35,81 +37,69 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
 
         let result = stateMachine.transition(runId, 'RUNNING', 'orchestrator', 'Decomposition complete, no ambiguity detected');
         expect(result.success).toBe(true);
-        expect(result.run.status).toBe('RUNNING');
+        expect(result.run!.status).toBe('RUNNING');
 
-        // Advance time for audit realism
         clock.advance(5000);
 
-        // 2. Implementation requires human approval (RUNNING -> AWAITING_APPROVAL)
-        result = approvalGate.requestApproval(
-            stateMachine,
+        // 2. Request human approval (tracked separately, workflow remains RUNNING)
+        const approvalRequest = approvalGate.requestApproval(
             runId,
             'arch-review-gate-01',
             'orchestrator',
             'Architecture review required before merging'
         );
-        expect(result.success).toBe(true);
-        expect(result.run.status).toBe('AWAITING_APPROVAL');
-
-        // 3. Verify workflow is strictly blocked (No inferred approval from silence)
-        const runWhilePending = stateMachine.getRun(runId)!;
-        expect(runWhilePending.status).toBe('AWAITING_APPROVAL');
+        expect(approvalRequest.status).toBe('PENDING');
         expect(approvalGate.getPendingApprovals()).toHaveLength(1);
 
-        // Advance time
+        // Workflow remains RUNNING (not corrupted to AWAITING_APPROVAL)
+        expect(stateMachine.getRun(runId)!.status).toBe('RUNNING');
+
         clock.advance(10000);
 
-        // 4. Human provides explicit, credential-verified approval (AWAITING_APPROVAL -> RUNNING)
+        // 3. Human provides explicit, credential-verified approval
         result = approvalGate.processDecision(stateMachine, 'arch-review-gate-01', {
             approver: 'senior-engineer',
-            credential: 'test-approver-credential',
+            credential: 'test-credential',
             decision: 'APPROVED',
             reason: 'Architecture aligns with ADR-002',
             timestamp: clock.now().toISOString(),
         });
         expect(result.success).toBe(true);
-        expect(result.run.status).toBe('RUNNING');
-        expect(approvalGate.getPendingApprovals()).toHaveLength(0); // Gate cleared
+        expect(approvalGate.isApproved('arch-review-gate-01')).toBe(true);
+        expect(approvalGate.getPendingApprovals()).toHaveLength(0);
 
-        // Advance time
         clock.advance(15000);
 
-        // 5. Implementation and testing complete (RUNNING -> COMPLETED)
+        // 4. Implementation and testing complete (RUNNING → COMPLETED)
         result = stateMachine.transition(runId, 'COMPLETED', 'orchestrator', 'All tests passed, contract validated');
         expect(result.success).toBe(true);
-        expect(result.run.status).toBe('COMPLETED');
+        expect(result.run!.status).toBe('COMPLETED');
 
-        // 6. Verify Decision Lineage (Audit Evidence)
-        // 6. Verify Decision Lineage (Audit Evidence)
+        // 5. Verify Decision Lineage (Audit Evidence)
         const finalRun = stateMachine.getRun(runId)!;
-        expect(finalRun.decisionLineage).toHaveLength(4);
+        expect(finalRun.decisionLineage).toHaveLength(2); // CREATED→RUNNING, RUNNING→COMPLETED
 
-        // Check first transition: CREATED -> RUNNING
+        // Check first transition: CREATED → RUNNING
         expect(finalRun.decisionLineage[0]!.fromState).toBe('CREATED');
         expect(finalRun.decisionLineage[0]!.toState).toBe('RUNNING');
         expect(finalRun.decisionLineage[0]!.actor).toBe('orchestrator');
 
-        // Check second transition: RUNNING -> AWAITING_APPROVAL
+        // Check second transition: RUNNING → COMPLETED
         expect(finalRun.decisionLineage[1]!.fromState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[1]!.toState).toBe('AWAITING_APPROVAL');
-        expect(finalRun.decisionLineage[1]!.reason).toContain('Architecture review required');
+        expect(finalRun.decisionLineage[1]!.toState).toBe('COMPLETED');
+        expect(finalRun.decisionLineage[1]!.actor).toBe('orchestrator');
 
-        // Check third transition: AWAITING_APPROVAL -> RUNNING (via approval)
-        expect(finalRun.decisionLineage[2]!.fromState).toBe('AWAITING_APPROVAL');
-        expect(finalRun.decisionLineage[2]!.toState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[2]!.actor).toBe('senior-engineer');
-        expect(finalRun.decisionLineage[2]!.reason).toBe('Approved: Architecture aligns with ADR-002');
-
-        // Check fourth transition: RUNNING -> COMPLETED
-        expect(finalRun.decisionLineage[3]!.fromState).toBe('RUNNING');
-        expect(finalRun.decisionLineage[3]!.toState).toBe('COMPLETED');
-        expect(finalRun.decisionLineage[3]!.actor).toBe('orchestrator');
+        // 6. Verify approval decision is recorded separately
+        const approvalDecision = approvalGate.getDecision('arch-review-gate-01');
+        expect(approvalDecision).toBeDefined();
+        expect(approvalDecision!.approver).toBe('senior-engineer');
+        expect(approvalDecision!.decision).toBe('APPROVED');
     });
 
     it('safely rejects unauthorized approval attempts (Security Gate)', () => {
         stateMachine.createRun(runId, policyVersion, {});
         stateMachine.transition(runId, 'RUNNING', 'orchestrator', 'start');
-        approvalGate.requestApproval(stateMachine, runId, 'security-gate', 'orchestrator', 'Check');
+        approvalGate.requestApproval(runId, 'security-gate', 'orchestrator', 'Check');
 
         // Attacker tries to approve with wrong credential
         const result = approvalGate.processDecision(stateMachine, 'security-gate', {
@@ -123,10 +113,24 @@ describe('Scenario A: Greenfield Workflow Execution', () => {
         expect(result.success).toBe(false);
         expect(result.error).toBe('Invalid approver credential');
 
-        // Workflow remains blocked
-        expect(stateMachine.getRun(runId)!.status).toBe('AWAITING_APPROVAL');
+        // Approval is not granted
+        expect(approvalGate.isApproved('security-gate')).toBe(false);
     });
 
-    // Set test credential before scenario runs
-    process.env.APPROVER_CREDENTIAL = 'test-approver-credential';
+    it('safe-stops workflow when approval is rejected', () => {
+        stateMachine.createRun(runId, policyVersion, {});
+        stateMachine.transition(runId, 'RUNNING', 'orchestrator', 'start');
+        approvalGate.requestApproval(runId, 'safety-gate', 'orchestrator', 'Safety check');
+
+        const result = approvalGate.processDecision(stateMachine, 'safety-gate', {
+            approver: 'safety-officer',
+            credential: 'test-credential',
+            decision: 'REJECTED',
+            reason: 'Unsafe condition detected',
+            timestamp: clock.now().toISOString(),
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.run!.status).toBe('SAFE_STOPPED');
+    });
 });

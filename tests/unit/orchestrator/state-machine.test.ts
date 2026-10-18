@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { OrchestrationStateMachine } from '../../../src/orchestrator/engine/state-machine.js';
-import { isValidWorkflowTransition, isValidNodeTransition, isTerminalState } from '../../../src/orchestrator/engine/transitions.js';
+import { isValidWorkflowTransition, isValidNodeTransition, isTerminalWorkflowState } from '../../../src/orchestrator/engine/transitions.js';
 
 describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
     let sm: OrchestrationStateMachine;
@@ -28,7 +28,7 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             sm.createRun('run-1', 'policy-v1.0');
             const result = sm.transition('run-1', 'RUNNING', 'system', 'Starting execution');
             expect(result.success).toBe(true);
-            expect(result.run.status).toBe('RUNNING');
+            expect(result.run!.status).toBe('RUNNING');
         });
 
         it('transitions RUNNING → COMPLETED', () => {
@@ -36,7 +36,7 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             sm.transition('run-1', 'RUNNING', 'system', 'start');
             const result = sm.transition('run-1', 'COMPLETED', 'system', 'All tasks done');
             expect(result.success).toBe(true);
-            expect(result.run.status).toBe('COMPLETED');
+            expect(result.run!.status).toBe('COMPLETED');
         });
 
         it('transitions RUNNING → SAFE_STOPPED', () => {
@@ -44,16 +44,22 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             sm.transition('run-1', 'RUNNING', 'system', 'start');
             const result = sm.safeStop('run-1', 'system', 'Unsafe condition detected');
             expect(result.success).toBe(true);
-            expect(result.run.status).toBe('SAFE_STOPPED');
+            expect(result.run!.status).toBe('SAFE_STOPPED');
         });
 
-        it('transitions SAFE_STOPPED → RUNNING (resumption)', () => {
+        it('transitions CREATED → CANCELLED', () => {
+            sm.createRun('run-1', 'policy-v1.0');
+            const result = sm.cancel('run-1', 'system', 'Cancelled before start');
+            expect(result.success).toBe(true);
+            expect(result.run!.status).toBe('CANCELLED');
+        });
+
+        it('transitions RUNNING → CANCELLED', () => {
             sm.createRun('run-1', 'policy-v1.0');
             sm.transition('run-1', 'RUNNING', 'system', 'start');
-            sm.safeStop('run-1', 'system', 'pause');
-            const result = sm.transition('run-1', 'RUNNING', 'human', 'Resuming after review');
+            const result = sm.cancel('run-1', 'system', 'Cancelled during execution');
             expect(result.success).toBe(true);
-            expect(result.run.status).toBe('RUNNING');
+            expect(result.run!.status).toBe('CANCELLED');
         });
     });
 
@@ -73,6 +79,15 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             expect(result.success).toBe(false);
         });
 
+        it('rejects SAFE_STOPPED → RUNNING (DEC-050: SAFE_STOPPED is permanent)', () => {
+            sm.createRun('run-1', 'policy-v1.0');
+            sm.transition('run-1', 'RUNNING', 'system', 'start');
+            sm.safeStop('run-1', 'system', 'pause');
+            const result = sm.transition('run-1', 'RUNNING', 'human', 'Resuming after review');
+            expect(result.success).toBe(false);
+            expect(result.error).toContain('Invalid transition');
+        });
+
         it('rejects transition on non-existent run', () => {
             const result = sm.transition('nonexistent', 'RUNNING', 'system', 'test');
             expect(result.success).toBe(false);
@@ -85,13 +100,12 @@ describe('OrchestrationStateMachine (FR-101, FR-104, ADR-004, ADR-019)', () => {
             sm.createRun('run-1', 'policy-v1.0');
             sm.transition('run-1', 'RUNNING', 'system', 'start');
             sm.safeStop('run-1', 'human', 'manual stop');
-            sm.transition('run-1', 'RUNNING', 'human', 'resume');
 
             const run = sm.getRun('run-1')!;
+            expect(run.decisionLineage).toHaveLength(2);
             expect(run.decisionLineage[0]!.fromState).toBe('CREATED');
             expect(run.decisionLineage[0]!.toState).toBe('RUNNING');
             expect(run.decisionLineage[1]!.toState).toBe('SAFE_STOPPED');
-            expect(run.decisionLineage[2]!.toState).toBe('RUNNING');
         });
     });
 });
@@ -100,19 +114,22 @@ describe('transition rules', () => {
     it('validates workflow transitions correctly', () => {
         expect(isValidWorkflowTransition('CREATED', 'RUNNING')).toBe(true);
         expect(isValidWorkflowTransition('CREATED', 'COMPLETED')).toBe(false);
-        expect(isValidWorkflowTransition('RUNNING', 'AWAITING_APPROVAL')).toBe(true);
+        expect(isValidWorkflowTransition('RUNNING', 'SAFE_STOPPED')).toBe(true);
+        expect(isValidWorkflowTransition('SAFE_STOPPED', 'RUNNING')).toBe(false); // DEC-050
         expect(isValidWorkflowTransition('COMPLETED', 'RUNNING')).toBe(false);
     });
 
     it('validates node transitions correctly', () => {
         expect(isValidNodeTransition('PENDING', 'READY')).toBe(true);
         expect(isValidNodeTransition('RUNNING', 'SUCCEEDED')).toBe(true);
+        expect(isValidNodeTransition('RUNNING', 'AWAITING_APPROVAL')).toBe(true); // Node state
         expect(isValidNodeTransition('SUCCEEDED', 'RUNNING')).toBe(false);
     });
 
-    it('identifies terminal states', () => {
-        expect(isTerminalState('COMPLETED')).toBe(true);
-        expect(isTerminalState('CANCELLED')).toBe(true);
-        expect(isTerminalState('RUNNING')).toBe(false);
+    it('identifies terminal workflow states', () => {
+        expect(isTerminalWorkflowState('COMPLETED')).toBe(true);
+        expect(isTerminalWorkflowState('CANCELLED')).toBe(true);
+        expect(isTerminalWorkflowState('SAFE_STOPPED')).toBe(true); // DEC-050
+        expect(isTerminalWorkflowState('RUNNING')).toBe(false);
     });
 });
