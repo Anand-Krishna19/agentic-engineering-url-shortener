@@ -1,8 +1,9 @@
 // Short link persistence (ADR-003: `pg`, hand-written parameterized SQL behind a repository, no ORM).
+import type { Queryable } from '../../../kernel/db/port.ts';
 
 /** Anything with a pg-style `query`: a Client, a transaction client, or a test double. */
-export interface Queryable {
-  query(text: string, values: unknown[]): Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
+export interface Db {
+  withConnection<T>(fn: (conn: Queryable) => Promise<T>): Promise<T>;
 }
 
 export interface NewShortLink {

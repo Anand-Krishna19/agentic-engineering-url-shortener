@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { Queryable } from './short-link-repository.js';
+import type { Queryable } from '../../../kernel/db/port.js';
 
 // One connection per unit of work, no pooling (DEC-113: pooling disabled for prototype simplicity).
 

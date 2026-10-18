@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+echo "🔍 Running lint..."
+npm run lint
+
+echo "🔍 Running typecheck..."
+npm run typecheck
+
+echo "🔍 Running tests..."
+npm test
+
+echo "✅ All checks passed!"

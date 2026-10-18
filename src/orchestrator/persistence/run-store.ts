@@ -9,14 +9,15 @@
  */
 import type { Clock } from '../../kernel/clock/clock.js';
 import type { ActorType, AuditAction } from '../../types/audit.js';
+import type { Queryable } from '../../kernel/db/port.ts';
 import type { AgentMode, NodeState, NodeStatus, ScenarioTag, WorkflowRunStatus } from '../../types/orchestration.js';
 import { isTerminalWorkflowState, isValidNodeTransition, isValidWorkflowTransition } from '../engine/transitions.js';
-import { appendAuditEvent, type Queryable } from './audit-chain.js';
+import { appendAuditEvent } from './audit-chain.js';
 
 /**
  * Minimal database interface for run store operations.
- * Compatible with the shortener's database adapter but defined locally
- * to maintain ADR-016 plane separation.
+ * Structurally identical to the shortener's Db to allow passing the same instance
+ * without violating ADR-016 (no direct imports from src/shortener).
  */
 export interface Db {
     withConnection<T>(fn: (conn: Queryable) => Promise<T>): Promise<T>;

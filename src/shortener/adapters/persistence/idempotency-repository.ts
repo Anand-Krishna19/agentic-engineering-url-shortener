@@ -2,7 +2,8 @@ import type { Clock } from '../../../kernel/clock/clock.js';
 import { RequestSupersededError, type CreateLinkStore, type ExistingRecord } from '../../app/create-link/service.js';
 import { insertWithUniqueCode, type RandomInt } from '../../domain/code/generator.js';
 import { withTransaction, type Db } from './pg-database.js';
-import { insertShortLink, type Queryable } from './short-link-repository.js';
+import { insertShortLink } from './short-link-repository.js';
+import type { Queryable } from '../../../kernel/db/port.js';
 
 // PostgreSQL store for idempotent creation (ADR-003, ADR-026, ADR-015, DEC-067). The database is the only
 // authority; every time value comes from the Clock port and is passed as a parameter, never `now()` (ADR-010).

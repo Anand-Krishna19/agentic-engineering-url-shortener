@@ -7,18 +7,25 @@
  * DECs:         DEC-095 (audit tables are INSERT-only)
  */
 import { createHash } from 'node:crypto';
-import type { Queryable } from '../../shortener/adapters/persistence/short-link-repository.js';
 import { ZERO_HASH, type AuditRecord } from '../../types/audit.js';
-
+import type { Queryable } from '../../kernel/db/port.ts';
 export type NewAuditEvent = Omit<AuditRecord, 'event_id' | 'seq' | 'prev_hash' | 'hash'>;
+
+/**
+ * Minimal database connection interface for audit operations.
+ * Compatible with the shortener's database adapter to maintain ADR-016 plane separation.
+ */
+export interface Db {
+  withConnection<T>(fn: (conn: Queryable) => Promise<T>): Promise<T>;
+}
 
 /** Deterministic JSON: object keys sorted, `undefined` members dropped. */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
   if (Array.isArray(value)) return `[${value.map((v) => canonicalJson(v)).join(',')}]`;
   const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
 }
 
@@ -42,8 +49,8 @@ export async function appendAuditEvent(conn: Queryable, event: NewAuditEvent): P
   if (lock.rows.length === 0) throw new Error(`Cannot audit unknown run ${event.run_id}`);
 
   const last = await conn.query(
-    'SELECT seq, hash FROM audit_events WHERE run_id = $1 ORDER BY seq DESC LIMIT 1',
-    [event.run_id],
+      'SELECT seq, hash FROM audit_events WHERE run_id = $1 ORDER BY seq DESC LIMIT 1',
+      [event.run_id],
   );
   const seq = last.rows.length === 0 ? 1 : Number(last.rows[0]!.seq) + 1;
   const prev_hash = last.rows.length === 0 ? ZERO_HASH : String(last.rows[0]!.hash);
@@ -55,8 +62,8 @@ export async function appendAuditEvent(conn: Queryable, event: NewAuditEvent): P
   const values = COLUMNS.map((c) => (c === 'data' && row[c] !== undefined ? JSON.stringify(row[c]) : row[c] ?? null));
   const placeholders = COLUMNS.map((_, i) => `$${i + 1}`).join(', ');
   const inserted = await conn.query(
-    `INSERT INTO audit_events (${COLUMNS.join(', ')}) VALUES (${placeholders}) RETURNING event_id`,
-    values,
+      `INSERT INTO audit_events (${COLUMNS.join(', ')}) VALUES (${placeholders}) RETURNING event_id`,
+      values,
   );
   return { ...unsigned, hash, event_id: String(inserted.rows[0]!.event_id) };
 }

@@ -5,7 +5,10 @@ import { registerCreateLink, type CreateLinkRouteDeps } from './shortener/adapte
 import { registerResolveLink } from './shortener/adapters/api/resolve-link.js';
 import type { ResolveDeps } from './shortener/app/resolve-link/service.js';
 import { generateRequestId, loggerOptions, REQUEST_ID_LOG_LABEL, type LogStream } from './logger.js';
+import { initializeDatabase } from './kernel/db/postgres.js';
 
+// Initialize database before starting the server
+initializeDatabase(process.env.DATABASE_URL);
 export interface BuildServerOptions {
   logLevel?: string;
   logStream?: LogStream;
