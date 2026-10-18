@@ -147,3 +147,16 @@ CREATE TRIGGER audit_events_no_mutation
 CREATE TRIGGER audit_events_no_truncate
   BEFORE TRUNCATE ON audit_events
   FOR EACH STATEMENT EXECUTE FUNCTION forbid_audit_mutation();
+
+-- Node (stage) state of a run, persisted so a run resumes from the database (FR-107, ADR-018).
+CREATE TABLE workflow_nodes (
+  run_id         text NOT NULL REFERENCES workflow_runs (run_id),
+  node_key       text NOT NULL,
+  state          text NOT NULL DEFAULT 'PENDING',
+  attempt_count  integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  branch         text,
+  blocked_by     jsonb NOT NULL DEFAULT '[]',
+  reason         text,
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (run_id, node_key)
+);

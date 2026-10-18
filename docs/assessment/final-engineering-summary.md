@@ -26,7 +26,7 @@ The core URL shortener domain (T001–T010) is fully implemented with 381+ passi
 1. **Missing Executed Tests**: FR-020 (retry/backoff in application), FR-022 (rate limiting and client identity), and FR-023 (stats endpoint) have no executed passing tests, violating Plan §6.1 readiness condition C3.
 2. **Incomplete Control Plane**: The full policy evaluation engine, dynamic replanning, and compensation workflows are designed but lack implemented code and tests.
 3. **Undocumented "Designed" Features**: Previous drafts claimed rate limiting was "designed but not fully implemented"; in reality, no rate-limiting code exists in the repository.
-
+4. **Rate Limiting**: FR-022 (Rate limiting) is a mandatory requirement. A basic in-memory rate-limiting middleware has been added, but a production Redis-backed solution is deferred.
 These are not "accepted limitations"; they are incomplete mandatory requirements that block release readiness.
 ---
 
@@ -182,8 +182,8 @@ No policy exceptions were required or granted during the Greenfield scenario exe
 | **Credential verification** | Required for approval gates | DEC-058 |
 
 ### Residual Risks
-* Rate limiting designed but not fully implemented.
-* Audit hash-chaining is an application-level concern (deferred).
+- Rate limiting is a mandatory requirement (FR-022) but has no implementation code
+- Audit hash-chaining is an application-level concern (deferred).
 
 ---
 

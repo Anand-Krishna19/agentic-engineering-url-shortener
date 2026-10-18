@@ -1,0 +1,7 @@
+{
+  "runId": "scn-a-greenfield-001",
+  "status": "COMPLETED",
+  "context": {
+    "requirement": "Add /healthz endpoint"
+  }
+}

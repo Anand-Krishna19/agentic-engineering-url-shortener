@@ -1,0 +1,16 @@
+[
+  {
+    "timestamp": "2026-10-18T10:00:00.000Z",
+    "fromState": "CREATED",
+    "toState": "RUNNING",
+    "actor": "orchestrator",
+    "reason": "Decomposition complete"
+  },
+  {
+    "timestamp": "2026-10-18T10:00:30.000Z",
+    "fromState": "RUNNING",
+    "toState": "COMPLETED",
+    "actor": "orchestrator",
+    "reason": "All tests passed"
+  }
+]

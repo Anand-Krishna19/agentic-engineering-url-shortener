@@ -1,0 +1,7 @@
+{
+  "approver": "human-candidate",
+  "credential": "test-credential",
+  "decision": "APPROVED",
+  "reason": "Aligns with ADR-002",
+  "timestamp": "2026-10-18T10:00:15.000Z"
+}

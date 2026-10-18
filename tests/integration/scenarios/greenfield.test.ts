@@ -7,7 +7,7 @@ import { SimulatedClock } from '../../../src/kernel/clock/clock.js';
 process.env.APPROVER_CREDENTIAL = 'test-credential';
 
 /**
- * Scenario A: Greenfield Demonstration
+ * Prototype Validation: In-Memory State Machine Transitions
  *
  * Objective: Demonstrate a new capability moving through the orchestration system
  * without an artificial clarification gate, proving sequential execution, human
