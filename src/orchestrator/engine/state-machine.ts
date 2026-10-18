@@ -1,4 +1,12 @@
-import { isValidWorkflowTransition, isTerminalState } from './transitions.js';
+/**
+ * Orchestration State Machine Engine
+ *
+ * Requirements: FR-101, FR-104, FR-106, FR-122 (safe-stop)
+ * ADRs: ADR-004, ADR-019, ADR-020 (reliability and recovery)
+ * DECs: DEC-045, DEC-050 (SAFE_STOPPED is permanent)
+ * Tasks: T011 (Workflow State Machine), T015 (Recovery and Safe-Stop)
+ */
+import { isValidWorkflowTransition } from './transitions.js';
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
 
 export interface WorkflowRun {
@@ -21,7 +29,7 @@ export interface DecisionRecord {
 
 export interface TransitionResult {
     readonly success: boolean;
-    readonly run: WorkflowRun;
+    readonly run?: WorkflowRun;
     readonly error?: string;
 }
 
@@ -60,15 +68,11 @@ export class OrchestrationStateMachine {
     transition(runId: string, toState: string, actor: string, reason: string): TransitionResult {
         const run = this.runs.get(runId);
         if (!run) {
-            return { success: false, run: this.createRun(runId, 'unknown'), error: `Run ${runId} not found` };
+            return { success: false, error: `Run ${runId} not found` };
         }
 
         if (!isValidWorkflowTransition(run.status, toState)) {
             return { success: false, run, error: `Invalid transition: ${run.status} → ${toState}` };
-        }
-
-        if (isTerminalState(toState) && !isValidWorkflowTransition(run.status, toState)) {
-            return { success: false, run, error: `Cannot enter terminal state ${toState} from ${run.status}` };
         }
 
         const decision: DecisionRecord = {

@@ -1,3 +1,11 @@
+/**
+ * Human Approval Gate
+ *
+ * Requirements: FR-114 (human approval gates), FR-115 (explicit credential verification), FR-116 (timeout escalation)
+ * ADRs: ADR-007 (Human approval model)
+ * DECs: DEC-058 (credential verification, no hard-coded secrets)
+ * Tasks: T012 (Human Approval Gates with safe-stop)
+ */
 import { OrchestrationStateMachine, TransitionResult } from '../engine/state-machine.js';
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
 
@@ -18,10 +26,6 @@ export interface ApprovalDecision {
     readonly timestamp: string;
 }
 
-/**
- * Credential verification uses environment variable (Constitution V, ADR-007, DEC-058).
- * Never hard-code credentials in source.
- */
 function getRequiredCredential(): string {
     const credential = process.env.APPROVER_CREDENTIAL;
     if (!credential || credential.length === 0) {
@@ -33,7 +37,7 @@ function getRequiredCredential(): string {
     return credential;
 }
 
-const APPROVAL_TIMEOUT_MS = 300_000; // 5 minutes
+const APPROVAL_TIMEOUT_MS = 300_000;
 
 export class ApprovalGate {
     private readonly pendingApprovals: Map<string, ApprovalRequest> = new Map();
@@ -45,12 +49,11 @@ export class ApprovalGate {
     }
 
     requestApproval(
-        stateMachine: OrchestrationStateMachine,
         runId: string,
         gateId: string,
         requestedBy: string,
         reason: string,
-    ): TransitionResult {
+    ): ApprovalRequest {
         const request: ApprovalRequest = {
             runId,
             gateId,
@@ -61,7 +64,7 @@ export class ApprovalGate {
         };
 
         this.pendingApprovals.set(gateId, request);
-        return stateMachine.transition(runId, 'AWAITING_APPROVAL', 'system', `Approval gate ${gateId}: ${reason}`);
+        return request;
     }
 
     processDecision(
@@ -71,18 +74,12 @@ export class ApprovalGate {
     ): TransitionResult {
         const request = this.pendingApprovals.get(gateId);
         if (!request) {
-            const run = stateMachine.getRun('unknown');
-            return {
-                success: false,
-                run: run ?? { runId: 'unknown', policyVersion: '', status: 'CREATED', createdAt: '', updatedAt: '', context: {}, decisionLineage: [] },
-                error: `Approval gate ${gateId} not found`,
-            };
+            return { success: false, error: `Approval gate ${gateId} not found` };
         }
 
-        // Credential verification (DEC-058, ADR-007)
         const requiredCredential = getRequiredCredential();
         if (decision.credential !== requiredCredential) {
-            return { success: false, run: stateMachine.getRun(request.runId)!, error: 'Invalid approver credential' };
+            return { success: false, error: 'Invalid approver credential' };
         }
 
         const elapsed = this.clock.now().getTime() - new Date(request.requestedAt).getTime();
@@ -95,10 +92,17 @@ export class ApprovalGate {
         this.pendingApprovals.delete(gateId);
 
         if (decision.decision === 'APPROVED') {
-            return stateMachine.transition(request.runId, 'RUNNING', decision.approver, `Approved: ${decision.reason}`);
+            // On approval, allow workflow to continue (transition to COMPLETED or next state)
+            return { success: true, run: stateMachine.getRun(request.runId) };
         } else {
+            // On rejection, safe-stop the workflow
             return stateMachine.safeStop(request.runId, decision.approver, `Rejected: ${decision.reason}`);
         }
+    }
+
+    isApproved(gateId: string): boolean {
+        const decision = this.decisions.get(gateId);
+        return decision?.decision === 'APPROVED';
     }
 
     getPendingApprovals(): ApprovalRequest[] {

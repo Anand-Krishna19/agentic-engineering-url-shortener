@@ -1,3 +1,11 @@
+/**
+ * Bounded Retry Handler
+ *
+ * Requirements: FR-117 (bounded retries), FR-118 (exponential backoff), FR-119 (timeout)
+ * ADRs: ADR-020 (Reliability and recovery)
+ * DECs: DEC-062 (retry bounds and backoff)
+ * Tasks: T015 (Recovery and Dynamic Replanning - retry portion)
+ */
 import { Clock, WallClock } from '../../kernel/clock/clock.js';
 
 export interface RetryConfig {
