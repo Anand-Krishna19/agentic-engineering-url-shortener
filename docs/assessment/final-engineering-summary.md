@@ -25,7 +25,7 @@ The core URL shortener domain (T001–T010) is implemented, with gaps tracked by
 **However, the system is NOT READY for release due to the following blocking gaps:**
 1. **Missing Executed Tests**: FR-020 (retry/backoff in application), FR-022 (rate limiting and client identity), and FR-023 (stats endpoint) have no executed passing tests, violating Plan §6.1 readiness condition C3.
 2. **Incomplete Control Plane**: The full policy evaluation engine, dynamic replanning, and compensation workflows are designed but lack implemented code and tests.
-3**Rate Limiting**: Basic in-memory rate limiting is implemented (FR-022); production Redis-backed solution per ADR-011 is deferred.
+3. **Rate Limiting**: Basic in-memory rate limiting is implemented (FR-022); production Redis-backed solution per ADR-011 is deferred.
 These are not "accepted limitations"; they are incomplete mandatory requirements that block release readiness.
 ---
 
